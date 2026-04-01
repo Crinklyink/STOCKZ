@@ -1,0 +1,170 @@
+PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+Scoring tickers:   0%|          | 0/69 [00:00<?, ?it/s]Scoring tickers:   1%|▏         | 1/69 [00:01<01:13,  1.09s/it]Scoring tickers:   3%|▎         | 2/69 [00:01<00:55,  1.21it/s]Scoring tickers:   4%|▍         | 3/69 [00:01<00:34,  1.90it/s]Scoring tickers:   6%|▌         | 4/69 [00:02<00:33,  1.94it/s]Scoring tickers:  10%|█         | 7/69 [00:02<00:13,  4.55it/s]Scoring tickers:  16%|█▌        | 11/69 [00:02<00:06,  8.79it/s]Scoring tickers:  29%|██▉       | 20/69 [00:02<00:02, 20.64it/s]Scoring tickers:  36%|███▌      | 25/69 [00:03<00:04, 10.08it/s]Scoring tickers:  42%|████▏     | 29/69 [00:04<00:03, 10.46it/s]Scoring tickers:  46%|████▋     | 32/69 [00:04<00:04,  8.99it/s]Scoring tickers:  52%|█████▏    | 36/69 [00:04<00:02, 11.43it/s]Scoring tickers:  59%|█████▉    | 41/69 [00:04<00:01, 15.64it/s]Scoring tickers:  65%|██████▌   | 45/69 [00:05<00:02, 11.90it/s]Scoring tickers:  70%|██████▉   | 48/69 [00:05<00:01, 11.26it/s]Scoring tickers:  74%|███████▍  | 51/69 [00:05<00:01, 10.56it/s]Scoring tickers:  77%|███████▋  | 53/69 [00:06<00:01, 11.57it/s]Scoring tickers:  80%|███████▉  | 55/69 [00:06<00:01, 12.57it/s]Scoring tickers:  91%|█████████▏| 63/69 [00:06<00:00, 22.41it/s]Scoring tickers:  97%|█████████▋| 67/69 [00:06<00:00, 21.85it/s]Scoring tickers: 100%|██████████| 69/69 [00:06<00:00, 10.55it/s]
+DEBUG CVX | Final 70.77 | Tech 68.03 | RS 97.65 | ML 52.42 | Vol 83.59 | Sent 45.00 | Flow 67.23 | Pattern 57.38
+  Technical signals: {"adx": 66.8, "bollinger": 0.0, "macd": 68.58, "momentum": 77.07, "price_vs_50ma": 100.0, "rsi": 32.12, "volume": 99.7, "vwap": 100.0}
+DEBUG XOM | Final 65.87 | Tech 56.82 | RS 98.82 | ML 48.49 | Vol 61.61 | Sent 45.00 | Flow 69.90 | Pattern 58.75
+  Technical signals: {"adx": 39.53, "bollinger": 0.0, "macd": 58.34, "momentum": 76.39, "price_vs_50ma": 100.0, "rsi": 50.44, "volume": 29.87, "vwap": 100.0}
+DEBUG LNG | Final 50.13 | Tech 70.94 | RS 100.00 | ML 43.44 | Vol 83.63 | Sent 45.97 | Flow 35.48 | Pattern 57.38
+  Technical signals: {"adx": 100.0, "bollinger": 0.0, "macd": 100.0, "momentum": 100.0, "price_vs_50ma": 100.0, "rsi": 22.11, "volume": 45.43, "vwap": 100.0}
+DEBUG SCHW | Final 48.83 | Tech 55.26 | RS 43.53 | ML 44.95 | Vol 53.20 | Sent 50.00* | Flow 18.62 | Pattern 57.63
+  Technical signals: {"adx": 24.38, "bollinger": 60.87, "macd": 59.01, "momentum": 58.42, "price_vs_50ma": 14.74, "rsi": 93.47, "volume": 31.21, "vwap": 100.0}
+DEBUG GOOGL | Final 36.10 | Tech 58.81 | RS 72.44 | ML 37.85 | Vol 39.28 | Sent 45.00 | Flow 60.52 | Pattern 61.68
+  Technical signals: {"adx": 27.25, "bollinger": 67.48, "macd": 69.38, "momentum": 67.46, "price_vs_50ma": 4.13, "rsi": 91.88, "volume": 42.93, "vwap": 100.0}
+DEBUG JNJ | Final 34.09 | Tech 56.15 | RS 70.92 | ML 33.97 | Vol 46.58 | Sent 50.00* | Flow 42.13 | Pattern 60.95
+  Technical signals: {"adx": 41.43, "bollinger": 39.0, "macd": 0.0, "momentum": 61.66, "price_vs_50ma": 40.77, "rsi": 92.64, "volume": 73.7, "vwap": 100.0}
+DEBUG EQIX | Final 32.63 | Tech 67.64 | RS 73.16 | ML 38.96 | Vol 65.39 | Sent 50.00* | Flow 24.41 | Pattern 55.25
+  Technical signals: {"adx": 26.27, "bollinger": 86.72, "macd": 0.0, "momentum": 66.06, "price_vs_50ma": 88.14, "rsi": 73.96, "volume": 100.0, "vwap": 100.0}
+DEBUG KO | Final 32.55 | Tech 53.47 | RS 47.06 | ML 35.48 | Vol 37.46 | Sent 50.00* | Flow 50.90 | Pattern 57.63
+  Technical signals: {"adx": 42.8, "bollinger": 43.03, "macd": 30.88, "momentum": 44.22, "price_vs_50ma": 25.39, "rsi": 76.79, "volume": 64.68, "vwap": 100.0}
+DEBUG ANET | Final 31.37 | Tech 58.12 | RS 59.31 | ML 36.93 | Vol 38.98 | Sent 50.00* | Flow 38.89 | Pattern 61.80
+  Technical signals: {"adx": 0.0, "bollinger": 97.92, "macd": 46.7, "momentum": 50.5, "price_vs_50ma": 20.65, "rsi": 97.72, "volume": 51.44, "vwap": 100.0}
+DEBUG DUK | Final 31.30 | Tech 52.27 | RS 52.94 | ML 35.80 | Vol 32.98 | Sent 50.00* | Flow 43.66 | Pattern 61.20
+  Technical signals: {"adx": 35.06, "bollinger": 31.33, "macd": 25.95, "momentum": 41.89, "price_vs_50ma": 46.24, "rsi": 95.09, "volume": 42.63, "vwap": 100.0}
+DEBUG NEE | Final 30.82 | Tech 58.94 | RS 60.00 | ML 36.59 | Vol 55.22 | Sent 45.00 | Flow 14.41 | Pattern 61.20
+  Technical signals: {"adx": 45.55, "bollinger": 35.3, "macd": 34.98, "momentum": 55.02, "price_vs_50ma": 39.46, "rsi": 96.12, "volume": 65.06, "vwap": 100.0}
+DEBUG NOC | Final 30.22 | Tech 58.31 | RS 77.48 | ML 36.61 | Vol 44.82 | Sent 50.00* | Flow 8.65 | Pattern 59.83
+  Technical signals: {"adx": 43.14, "bollinger": 60.1, "macd": 0.0, "momentum": 58.3, "price_vs_50ma": 43.49, "rsi": 99.18, "volume": 62.24, "vwap": 100.0}
+DEBUG GD | Final 30.03 | Tech 55.33 | RS 59.83 | ML 34.16 | Vol 50.04 | Sent 50.00* | Flow 23.15 | Pattern 60.60
+  Technical signals: {"adx": 24.71, "bollinger": 60.53, "macd": 7.32, "momentum": 51.22, "price_vs_50ma": 19.57, "rsi": 91.9, "volume": 87.41, "vwap": 100.0}
+DEBUG LMT | Final 29.32 | Tech 58.90 | RS 79.83 | ML 36.22 | Vol 53.01 | Sent 50.00* | Flow 31.49 | Pattern 60.60
+  Technical signals: {"adx": 35.37, "bollinger": 37.98, "macd": 0.0, "momentum": 60.66, "price_vs_50ma": 39.88, "rsi": 97.31, "volume": 100.0, "vwap": 100.0}
+DEBUG NVDA | Final 28.69 | Tech 44.84 | RS 51.07 | ML 32.97 | Vol 20.09 | Sent 45.22 | Flow 54.91 | Pattern 61.80
+  Technical signals: {"adx": 55.7, "bollinger": 40.2, "macd": 21.88, "momentum": 39.34, "price_vs_50ma": 0.0, "rsi": 84.21, "volume": 17.42, "vwap": 100.0}
+DEBUG O | Final 28.57 | Tech 41.56 | RS 40.22 | ML 36.80 | Vol 25.92 | Sent 50.00* | Flow 43.60 | Pattern 48.60
+  Technical signals: {"adx": 33.94, "bollinger": 10.8, "macd": 29.05, "momentum": 33.99, "price_vs_50ma": 14.51, "rsi": 68.75, "volume": 41.47, "vwap": 100.0}
+DEBUG RTX | Final 28.38 | Tech 50.21 | RS 70.42 | ML 34.95 | Vol 31.07 | Sent 50.00* | Flow 24.08 | Pattern 60.60
+  Technical signals: {"adx": 11.8, "bollinger": 66.28, "macd": 11.72, "momentum": 58.34, "price_vs_50ma": 29.88, "rsi": 97.16, "volume": 26.5, "vwap": 100.0}
+DEBUG CAT | Final 28.32 | Tech 59.23 | RS 84.54 | ML 30.99 | Vol 38.04 | Sent 50.00* | Flow 27.14 | Pattern 60.60
+  Technical signals: {"adx": 72.61, "bollinger": 68.15, "macd": 0.0, "momentum": 63.67, "price_vs_50ma": 22.11, "rsi": 90.95, "volume": 56.39, "vwap": 100.0}
+DEBUG LHX | Final 28.21 | Tech 48.79 | RS 82.18 | ML 32.94 | Vol 32.75 | Sent 50.00* | Flow 22.79 | Pattern 59.83
+  Technical signals: {"adx": 15.11, "bollinger": 75.23, "macd": 0.0, "momentum": 64.24, "price_vs_50ma": 37.18, "rsi": 96.96, "volume": 1.61, "vwap": 100.0}
+DEBUG ETN | Final 27.65 | Tech 66.88 | RS 56.30 | ML 30.62 | Vol 43.38 | Sent 50.00* | Flow 12.18 | Pattern 60.60
+  Technical signals: {"adx": 77.52, "bollinger": 95.6, "macd": 30.41, "momentum": 55.87, "price_vs_50ma": 36.16, "rsi": 95.41, "volume": 44.1, "vwap": 100.0}
+DEBUG AMZN | Final 27.54 | Tech 40.12 | RS 28.24 | ML 31.03 | Vol 29.10 | Sent 45.00 | Flow 61.00 | Pattern 48.25
+  Technical signals: {"adx": 15.11, "bollinger": 59.26, "macd": 56.5, "momentum": 41.02, "price_vs_50ma": 0.0, "rsi": 90.25, "volume": 26.04, "vwap": 32.78}
+DEBUG SO | Final 26.89 | Tech 44.88 | RS 45.88 | ML 36.94 | Vol 21.22 | Sent 46.75 | Flow 25.37 | Pattern 57.05
+  Technical signals: {"adx": 41.92, "bollinger": 3.07, "macd": 31.13, "momentum": 39.2, "price_vs_50ma": 43.08, "rsi": 93.49, "volume": 7.19, "vwap": 100.0}
+DEBUG AVGO | Final 26.43 | Tech 40.78 | RS 46.37 | ML 35.89 | Vol 24.73 | Sent 50.00* | Flow 32.39 | Pattern 61.80
+  Technical signals: {"adx": 16.67, "bollinger": 56.15, "macd": 0.0, "momentum": 38.47, "price_vs_50ma": 0.0, "rsi": 87.25, "volume": 27.68, "vwap": 100.0}
+DEBUG ORCL | Final 26.16 | Tech 42.68 | RS 14.60 | ML 26.72 | Vol 23.18 | Sent 50.00* | Flow 54.12 | Pattern 57.81
+  Technical signals: {"adx": 34.24, "bollinger": 92.43, "macd": 77.64, "momentum": 14.37, "price_vs_50ma": 0.0, "rsi": 97.36, "volume": 25.36, "vwap": 0.0}
+DEBUG GE | Final 25.31 | Tech 44.53 | RS 38.65 | ML 33.01 | Vol 15.86 | Sent 50.00* | Flow 31.36 | Pattern 60.60
+  Technical signals: {"adx": 91.93, "bollinger": 44.88, "macd": 0.0, "momentum": 32.4, "price_vs_50ma": 0.0, "rsi": 66.92, "volume": 20.14, "vwap": 100.0}
+DEBUG NUE | Final 25.05 | Tech 45.73 | RS 40.00 | ML 33.25 | Vol 19.81 | Sent 50.00* | Flow 24.28 | Pattern 57.63
+  Technical signals: {"adx": 100.0, "bollinger": 49.91, "macd": 6.27, "momentum": 41.76, "price_vs_50ma": 0.0, "rsi": 63.62, "volume": 4.29, "vwap": 100.0}
+DEBUG PLD | Final 24.92 | Tech 44.88 | RS 41.39 | ML 32.65 | Vol 18.36 | Sent 50.00* | Flow 22.98 | Pattern 55.25
+  Technical signals: {"adx": 73.7, "bollinger": 43.17, "macd": 12.26, "momentum": 41.98, "price_vs_50ma": 7.13, "rsi": 73.27, "volume": 7.5, "vwap": 100.0}
+DEBUG LULU | Final 24.65 | Tech 47.28 | RS 3.53 | ML 25.48 | Vol 31.71 | Sent 50.00* | Flow 36.64 | Pattern 53.44
+  Technical signals: {"adx": 68.28, "bollinger": 89.54, "macd": 47.92, "momentum": 34.7, "price_vs_50ma": 0.0, "rsi": 87.98, "volume": 49.82, "vwap": 0.0}
+DEBUG PG | Final 24.26 | Tech 28.37 | RS 18.82 | ML 19.91 | Vol 17.04 | Sent 45.00 | Flow 55.85 | Pattern 65.93
+  Technical signals: {"adx": 59.82, "bollinger": 52.55, "macd": 0.0, "momentum": 26.04, "price_vs_50ma": 0.0, "rsi": 68.95, "volume": 19.57, "vwap": 0.0}
+DEBUG DE | Final 24.13 | Tech 57.91 | RS 58.65 | ML 28.73 | Vol 31.85 | Sent 46.75 | Flow 7.96 | Pattern 60.60
+  Technical signals: {"adx": 88.68, "bollinger": 58.57, "macd": 0.0, "momentum": 46.56, "price_vs_50ma": 25.75, "rsi": 83.69, "volume": 60.03, "vwap": 100.0}
+DEBUG MSFT | Final 23.95 | Tech 27.05 | RS 24.02 | ML 20.65 | Vol 24.94 | Sent 45.29 | Flow 54.55 | Pattern 51.20
+  Technical signals: {"adx": 12.07, "bollinger": 35.51, "macd": 40.69, "momentum": 20.42, "price_vs_50ma": 0.0, "rsi": 71.68, "volume": 36.07, "vwap": 0.0}
+DEBUG ISRG | Final 23.48 | Tech 40.30 | RS 30.92 | ML 30.21 | Vol 32.18 | Sent 50.00* | Flow 23.83 | Pattern 50.72
+  Technical signals: {"adx": 38.5, "bollinger": 71.66, "macd": 40.54, "momentum": 47.35, "price_vs_50ma": 3.06, "rsi": 89.67, "volume": 31.62, "vwap": 0.0}
+DEBUG PEP | Final 23.31 | Tech 41.36 | RS 32.94 | ML 20.82 | Vol 34.28 | Sent 50.00* | Flow 37.48 | Pattern 41.49
+  Technical signals: {"adx": 89.29, "bollinger": 38.14, "macd": 0.0, "momentum": 28.15, "price_vs_50ma": 7.68, "rsi": 67.4, "volume": 77.68, "vwap": 22.53}
+DEBUG TSLA | Final 23.10 | Tech 34.37 | RS 20.00 | ML 28.99 | Vol 17.04 | Sent 50.00* | Flow 52.91 | Pattern 57.63
+  Technical signals: {"adx": 54.58, "bollinger": 0.03, "macd": 0.0, "momentum": 20.88, "price_vs_50ma": 0.0, "rsi": 71.28, "volume": 28.18, "vwap": 100.0}
+DEBUG FANG | Final 22.69 | Tech 60.03 | RS 95.29 | ML 56.19 | Vol 64.14 | Sent 50.00* | Flow 59.30 | Pattern 57.38
+  Technical signals: {"adx": 55.83, "bollinger": 0.0, "macd": 78.58, "momentum": 86.48, "price_vs_50ma": 100.0, "rsi": 38.16, "volume": 21.16, "vwap": 100.0}
+DEBUG NRG | Final 22.30 | Tech 46.39 | RS 24.71 | ML 30.33 | Vol 16.89 | Sent 50.00* | Flow 26.47 | Pattern 61.20
+  Technical signals: {"adx": 86.57, "bollinger": 64.91, "macd": 7.88, "momentum": 28.73, "price_vs_50ma": 0.0, "rsi": 83.02, "volume": 0.0, "vwap": 100.0}
+DEBUG MDLZ | Final 22.15 | Tech 50.85 | RS 29.41 | ML 23.03 | Vol 45.25 | Sent 50.00* | Flow 11.62 | Pattern 45.37
+  Technical signals: {"adx": 46.2, "bollinger": 87.4, "macd": 43.75, "momentum": 51.78, "price_vs_50ma": 14.49, "rsi": 95.5, "volume": 67.68, "vwap": 0.0}
+DEBUG SNOW | Final 22.10 | Tech 38.24 | RS 22.84 | ML 24.78 | Vol 11.68 | Sent 50.00* | Flow 35.70 | Pattern 52.86
+  Technical signals: {"adx": 21.82, "bollinger": 95.59, "macd": 71.4, "momentum": 11.96, "price_vs_50ma": 0.0, "rsi": 93.08, "volume": 0.0, "vwap": 12.07}
+DEBUG UNH | Final 21.82 | Tech 44.09 | RS 10.92 | ML 21.92 | Vol 44.31 | Sent 45.00 | Flow 37.95 | Pattern 58.23
+  Technical signals: {"adx": 36.33, "bollinger": 51.36, "macd": 56.3, "momentum": 20.38, "price_vs_50ma": 0.0, "rsi": 88.37, "volume": 100.0, "vwap": 0.0}
+DEBUG NKE | Final 21.22 | Tech 34.59 | RS 1.18 | ML 21.74 | Vol 8.19 | Sent 50.00* | Flow 52.33 | Pattern 45.95
+  Technical signals: {"adx": 100.0, "bollinger": 64.3, "macd": 36.4, "momentum": 15.33, "price_vs_50ma": 0.0, "rsi": 56.61, "volume": 4.07, "vwap": 0.0}
+DEBUG CEG | Final 21.09 | Tech 43.55 | RS 21.18 | ML 28.76 | Vol 32.50 | Sent 45.00 | Flow 16.73 | Pattern 62.69
+  Technical signals: {"adx": 64.09, "bollinger": 17.52, "macd": 0.0, "momentum": 20.9, "price_vs_50ma": 0.0, "rsi": 84.0, "volume": 61.91, "vwap": 100.0}
+DEBUG SPOT | Final 20.66 | Tech 33.33 | RS 15.96 | ML 24.89 | Vol 13.98 | Sent 50.00* | Flow 17.15 | Pattern 60.76
+  Technical signals: {"adx": 74.27, "bollinger": 69.79, "macd": 0.0, "momentum": 3.56, "price_vs_50ma": 7.03, "rsi": 90.35, "volume": 21.64, "vwap": 0.0}
+DEBUG TTD | Final 20.54 | Tech 32.76 | RS 7.73 | ML 28.22 | Vol 8.97 | Sent 45.00 | Flow 39.24 | Pattern 59.17
+  Technical signals: {"adx": 33.11, "bollinger": 88.11, "macd": 46.65, "momentum": 0.0, "price_vs_50ma": 0.0, "rsi": 85.33, "volume": 8.84, "vwap": 0.0}
+DEBUG SLB | Final 20.35 | Tech 68.54 | RS 81.18 | ML 35.02 | Vol 50.06 | Sent 50.00* | Flow 49.47 | Pattern 58.75
+  Technical signals: {"adx": 100.0, "bollinger": 99.49, "macd": 42.74, "momentum": 79.18, "price_vs_50ma": 12.09, "rsi": 98.43, "volume": 16.41, "vwap": 100.0}
+DEBUG BKR | Final 20.29 | Tech 69.18 | RS 92.94 | ML 45.94 | Vol 57.93 | Sent 50.00* | Flow 19.59 | Pattern 58.75
+  Technical signals: {"adx": 41.0, "bollinger": 75.55, "macd": 40.33, "momentum": 100.0, "price_vs_50ma": 63.78, "rsi": 79.18, "volume": 53.57, "vwap": 100.0}
+DEBUG PLTR | Final 19.81 | Tech 66.02 | RS 65.19 | ML 41.35 | Vol 51.79 | Sent 48.50 | Flow 59.13 | Pattern 61.86
+  Technical signals: {"adx": 99.79, "bollinger": 57.86, "macd": 81.44, "momentum": 56.61, "price_vs_50ma": 33.83, "rsi": 86.7, "volume": 11.89, "vwap": 100.0}
+DEBUG AMD | Final 19.13 | Tech 57.18 | RS 76.96 | ML 43.30 | Vol 53.93 | Sent 46.75 | Flow 50.69 | Pattern 61.80
+  Technical signals: {"adx": 13.62, "bollinger": 66.28, "macd": 91.51, "momentum": 81.99, "price_vs_50ma": 0.0, "rsi": 93.34, "volume": 10.68, "vwap": 100.0}
+DEBUG NFLX | Final 18.99 | Tech 58.73 | RS 50.08 | ML 42.80 | Vol 36.81 | Sent 50.00* | Flow 59.28 | Pattern 61.62
+  Technical signals: {"adx": 100.0, "bollinger": 79.63, "macd": 30.99, "momentum": 41.2, "price_vs_50ma": 70.82, "rsi": 85.72, "volume": 21.5, "vwap": 39.94}
+DEBUG JPM | Final 18.51 | Tech 67.72 | RS 23.53 | ML 38.90 | Vol 41.66 | Sent 50.00* | Flow 53.74 | Pattern 57.63
+  Technical signals: {"adx": 100.0, "bollinger": 87.83, "macd": 51.67, "momentum": 45.63, "price_vs_50ma": 3.15, "rsi": 83.64, "volume": 69.81, "vwap": 100.0}
+DEBUG AMT | Final 18.37 | Tech 29.56 | RS 24.92 | ML 24.11 | Vol 25.22 | Sent 50.00* | Flow 2.73 | Pattern 46.39
+  Technical signals: {"adx": 30.37, "bollinger": 28.59, "macd": 9.11, "momentum": 29.32, "price_vs_50ma": 20.67, "rsi": 89.55, "volume": 28.85, "vwap": 0.0}
+DEBUG AAPL | Final 17.90 | Tech 56.03 | RS 41.66 | ML 34.08 | Vol 43.39 | Sent 46.75 | Flow 59.57 | Pattern 61.80
+  Technical signals: {"adx": 78.23, "bollinger": 58.82, "macd": 4.88, "momentum": 44.2, "price_vs_50ma": 6.05, "rsi": 77.73, "volume": 78.36, "vwap": 100.0}
+DEBUG VST | Final 17.88 | Tech 43.52 | RS 11.76 | ML 27.25 | Vol 19.58 | Sent 45.00 | Flow 3.32 | Pattern 61.20
+  Technical signals: {"adx": 80.97, "bollinger": 6.31, "macd": 15.11, "momentum": 5.22, "price_vs_50ma": 0.0, "rsi": 80.8, "volume": 59.77, "vwap": 100.0}
+DEBUG MRK | Final 17.73 | Tech 58.42 | RS 68.57 | ML 33.55 | Vol 29.31 | Sent 50.00* | Flow 45.71 | Pattern 60.95
+  Technical signals: {"adx": 65.03, "bollinger": 74.64, "macd": 24.38, "momentum": 64.56, "price_vs_50ma": 29.54, "rsi": 91.32, "volume": 17.88, "vwap": 100.0}
+DEBUG LIN | Final 17.34 | Tech 66.45 | RS 56.47 | ML 38.12 | Vol 55.48 | Sent 50.00* | Flow 28.82 | Pattern 56.44
+  Technical signals: {"adx": 55.12, "bollinger": 96.34, "macd": 0.0, "momentum": 54.98, "price_vs_50ma": 58.47, "rsi": 84.13, "volume": 82.6, "vwap": 100.0}
+DEBUG MS | Final 16.83 | Tech 66.02 | RS 35.29 | ML 43.47 | Vol 50.44 | Sent 50.00* | Flow 19.14 | Pattern 57.63
+  Technical signals: {"adx": 92.94, "bollinger": 84.41, "macd": 60.86, "momentum": 60.87, "price_vs_50ma": 0.0, "rsi": 98.45, "volume": 30.6, "vwap": 100.0}
+DEBUG GS | Final 16.68 | Tech 61.43 | RS 34.12 | ML 40.97 | Vol 38.32 | Sent 50.00* | Flow 47.27 | Pattern 57.63
+  Technical signals: {"adx": 100.0, "bollinger": 97.41, "macd": 27.0, "momentum": 59.78, "price_vs_50ma": 0.0, "rsi": 86.74, "volume": 20.48, "vwap": 100.0}
+DEBUG WMT | Final 16.62 | Tech 53.85 | RS 57.65 | ML 38.95 | Vol 47.22 | Sent 50.00* | Flow 43.21 | Pattern 57.63
+  Technical signals: {"adx": 56.43, "bollinger": 13.68, "macd": 21.68, "momentum": 40.62, "price_vs_50ma": 14.53, "rsi": 83.85, "volume": 100.0, "vwap": 100.0}
+DEBUG CME | Final 16.31 | Tech 55.77 | RS 58.82 | ML 39.90 | Vol 43.48 | Sent 50.00* | Flow 13.70 | Pattern 57.63
+  Technical signals: {"adx": 16.46, "bollinger": 75.88, "macd": 0.0, "momentum": 60.02, "price_vs_50ma": 54.86, "rsi": 92.16, "volume": 46.74, "vwap": 100.0}
+DEBUG MOS | Final 16.15 | Tech 27.05 | RS 2.35 | ML 28.83 | Vol 11.44 | Sent 50.00* | Flow 32.45 | Pattern 47.82
+  Technical signals: {"adx": 39.17, "bollinger": 19.12, "macd": 38.99, "momentum": 0.08, "price_vs_50ma": 0.0, "rsi": 80.98, "volume": 38.08, "vwap": 0.0}
+DEBUG COST | Final 15.65 | Tech 49.57 | RS 54.12 | ML 37.70 | Vol 31.94 | Sent 50.00* | Flow 27.97 | Pattern 49.30
+  Technical signals: {"adx": 50.41, "bollinger": 36.83, "macd": 0.0, "momentum": 45.69, "price_vs_50ma": 31.7, "rsi": 95.84, "volume": 36.08, "vwap": 100.0}
+DEBUG HD | Final 15.21 | Tech 36.25 | RS 9.41 | ML 22.26 | Vol 29.66 | Sent 46.17 | Flow 3.39 | Pattern 45.66
+  Technical signals: {"adx": 100.0, "bollinger": 42.86, "macd": 0.0, "momentum": 11.57, "price_vs_50ma": 0.0, "rsi": 51.48, "volume": 84.11, "vwap": 0.0}
+DEBUG HWM | Final 15.20 | Tech 51.44 | RS 76.30 | ML 31.89 | Vol 21.42 | Sent 50.00* | Flow 21.78 | Pattern 60.60
+  Technical signals: {"adx": 89.75, "bollinger": 42.87, "macd": 0.0, "momentum": 62.29, "price_vs_50ma": 28.08, "rsi": 85.37, "volume": 3.15, "vwap": 100.0}
+DEBUG CRM | Final 14.78 | Tech 46.76 | RS 25.19 | ML 31.34 | Vol 34.28 | Sent 50.00* | Flow 50.90 | Pattern 54.55
+  Technical signals: {"adx": 81.51, "bollinger": 67.11, "macd": 85.91, "momentum": 35.94, "price_vs_50ma": 5.12, "rsi": 95.22, "volume": 3.23, "vwap": 0.0}
+DEBUG ABBV | Final 13.00 | Tech 45.56 | RS 22.68 | ML 39.10 | Vol 38.50 | Sent 50.00* | Flow 20.17 | Pattern 53.37
+  Technical signals: {"adx": 55.2, "bollinger": 29.15, "macd": 0.0, "momentum": 17.96, "price_vs_50ma": 0.0, "rsi": 62.19, "volume": 100.0, "vwap": 100.0}
+DEBUG AXP | Final 12.89 | Tech 50.70 | RS 10.59 | ML 35.36 | Vol 16.36 | Sent 50.00* | Flow 24.93 | Pattern 45.24
+  Technical signals: {"adx": 100.0, "bollinger": 78.45, "macd": 62.36, "momentum": 25.01, "price_vs_50ma": 0.0, "rsi": 71.23, "volume": 6.96, "vwap": 61.6}
+DEBUG LLY | Final 11.98 | Tech 35.91 | RS 32.10 | ML 33.40 | Vol 10.56 | Sent 45.00 | Flow 28.56 | Pattern 60.95
+  Technical signals: {"adx": 48.19, "bollinger": 39.69, "macd": 0.0, "momentum": 20.01, "price_vs_50ma": 0.0, "rsi": 68.27, "volume": 11.12, "vwap": 100.0}
+DEBUG META | Final 11.78 | Tech 26.16 | RS 24.20 | ML 24.91 | Vol 26.42 | Sent 45.00 | Flow 38.48 | Pattern 51.20
+  Technical signals: {"adx": 30.34, "bollinger": 24.01, "macd": 0.0, "momentum": 24.55, "price_vs_50ma": 0.0, "rsi": 72.47, "volume": 48.12, "vwap": 9.8}
+DEBUG FCX | Final 11.40 | Tech 42.45 | RS 44.71 | ML 33.41 | Vol 9.89 | Sent 50.00* | Flow 20.61 | Pattern 57.63
+  Technical signals: {"adx": 79.86, "bollinger": 43.65, "macd": 5.86, "momentum": 29.92, "price_vs_50ma": 0.0, "rsi": 70.48, "volume": 9.87, "vwap": 100.0}
+DEBUG URI | Final 8.09 | Tech 30.09 | RS 15.12 | ML 28.43 | Vol 12.67 | Sent 50.00* | Flow 0.46 | Pattern 51.24
+  Technical signals: {"adx": 100.0, "bollinger": 59.46, "macd": 0.0, "momentum": 16.9, "price_vs_50ma": 0.0, "rsi": 64.35, "volume": 0.0, "vwap": 0.0}
+Macro: NEUTRAL | Threshold: 54.0
+Regime neutral; VIX 26.78; top sectors: Energy, Financials; DXY 5-day return -0.85%; 2s/10s proxy spread 0.77.
+Data quality: 69 of 69 tickers had full data; 69 passed validation
+
+ticker                 sector    score_band confidence  prob_4pct_5d            pattern  pattern_win_rate  price  stop_loss    tp2  risk_reward
+   CVX                 Energy 70.8 +/- 12.0        low         52.42 ascending_triangle              7.14 201.73     195.62 209.80         1.32
+   XOM                 Energy 65.9 +/- 12.0        low         48.49       vwap_reclaim             11.76 159.67     153.95 166.06         1.12
+   LNG                 Energy 50.1 +/- 12.0        low         43.44 ascending_triangle              7.14 280.89     264.94 292.13         0.70
+  SCHW     Financial Services 48.8 +/- 12.0        low         44.95       vwap_reclaim              8.00  94.66      91.49  98.45         1.20
+ GOOGL Communication Services 36.1 +/- 11.2        low         37.85       vwap_reclaim             21.62 301.00     291.02 313.04         1.21
+   JNJ             Healthcare  34.1 +/- 9.2        low         33.97       vwap_reclaim             19.15 235.37     228.31 244.78         1.33
+  EQIX            Real Estate 32.6 +/- 11.7        low         38.96 ascending_triangle              0.00 959.16     925.07 997.53         1.13
+    KO     Consumer Defensive 32.5 +/- 12.0        low         35.48       vwap_reclaim              8.00  74.75      72.51  77.74         1.33
+  ANET             Technology 31.4 +/- 12.0        low         36.93       vwap_reclaim             22.00 131.22     122.39 136.47         0.59
+   DUK              Utilities 31.3 +/- 10.7        low         35.80       vwap_reclaim             20.00 126.81     123.01 131.88         1.33
+
+Qualified above threshold: 2/10
+Suggestion: lower threshold to 49.0 to include 1 more picks.
+
+CVX | Final: 71 | Tech: 68 | RS: 98 | ML: 52 | Vol: 84 | Sentiment: 45 | Flow: 67 | QUALIFIED
+XOM | Final: 66 | Tech: 57 | RS: 99 | ML: 48 | Vol: 62 | Sentiment: 45 | Flow: 70 | QUALIFIED
+LNG | Final: 50 | Tech: 71 | RS: 100 | ML: 43 | Vol: 84 | Sentiment: 46 | Flow: 35 | LOW CONFIDENCE
+SCHW | Final: 49 | Tech: 55 | RS: 44 | ML: 45 | Vol: 53 | Sentiment: 50* | Flow: 19 | LOW CONFIDENCE
+GOOGL | Final: 36 | Tech: 59 | RS: 72 | ML: 38 | Vol: 39 | Sentiment: 45 | Flow: 61 | LOW CONFIDENCE
+JNJ | Final: 34 | Tech: 56 | RS: 71 | ML: 34 | Vol: 47 | Sentiment: 50* | Flow: 42 | LOW CONFIDENCE
+EQIX | Final: 33 | Tech: 68 | RS: 73 | ML: 39 | Vol: 65 | Sentiment: 50* | Flow: 24 | LOW CONFIDENCE
+KO | Final: 33 | Tech: 53 | RS: 47 | ML: 35 | Vol: 37 | Sentiment: 50* | Flow: 51 | LOW CONFIDENCE
+ANET | Final: 31 | Tech: 58 | RS: 59 | ML: 37 | Vol: 39 | Sentiment: 50* | Flow: 39 | LOW CONFIDENCE
+DUK | Final: 31 | Tech: 52 | RS: 53 | ML: 36 | Vol: 33 | Sentiment: 50* | Flow: 44 | LOW CONFIDENCE

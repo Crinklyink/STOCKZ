@@ -1,0 +1,177 @@
+{
+  "trained": true,
+  "training_samples": 53657,
+  "validation_samples": 10732,
+  "accuracy": 0.25782705926202015,
+  "precision": 0.23336883896581775,
+  "recall": 0.9804719283970708,
+  "auc": 0.6014461538461539,
+  "positive_ratio": 0.17945253348864298,
+  "negative_ratio": 0.820547466511357,
+  "scale_pos_weight": 4.572504219135402,
+  "feature_importance": {
+    "breadth_percentile": 0.07065941100669033,
+    "earnings_proximity_score": 0.06437028628947422,
+    "resistance_distance": 0.05824238166660661,
+    "price_vs_52w_high": 0.051703085779624555,
+    "vwap_distance": 0.046942225431743013,
+    "gap_quality": 0.038544554643956314,
+    "sma_50_gap": 0.03790581821333584,
+    "weeks_since_earnings": 0.036058495550466314,
+    "return_1": 0.035869876027875815,
+    "price_acceleration": 0.03412248337922541,
+    "volume_ratio": 0.03374903062102405,
+    "return_5": 0.03285997210666461,
+    "return_20": 0.03250725039623001,
+    "roc_10": 0.03223507074623118,
+    "atr_percentile": 0.031672810588952084,
+    "rsi": 0.030960886482072437,
+    "atr": 0.030739259448947058,
+    "volume_delta": 0.029849062870780096,
+    "sector_rs_rank": 0.029574273106247825,
+    "macd": 0.028274510082317933,
+    "bollinger_position": 0.027490785379738324,
+    "macd_hist": 0.027216984772300924,
+    "adx": 0.027081449411816692,
+    "volume_trend": 0.026443543710492623,
+    "mfi": 0.026411342868738696,
+    "stoch_k": 0.02617376407406042,
+    "gap_held": 0.02076179883007786,
+    "consecutive_up_days": 0.016869548385944125,
+    "trend_consistency": 0.014710038128364595
+  },
+  "trained_at": "2026-03-22T07:58:13.817196+00:00",
+  "xgb_auc": 0.6024461538461539,
+  "lightgbm_auc": 0.5900307692307692,
+  "ensemble_auc": 0.6014461538461539,
+  "fold_aucs": [
+    {
+      "fold": 1,
+      "month": "2025-03",
+      "auc": 0.4564,
+      "xgb_auc": 0.4391,
+      "lightgbm_auc": 0.4633
+    },
+    {
+      "fold": 2,
+      "month": "2025-04",
+      "auc": 0.6065,
+      "xgb_auc": 0.6064,
+      "lightgbm_auc": 0.5975
+    },
+    {
+      "fold": 3,
+      "month": "2025-05",
+      "auc": 0.6941,
+      "xgb_auc": 0.694,
+      "lightgbm_auc": 0.68
+    },
+    {
+      "fold": 4,
+      "month": "2025-06",
+      "auc": 0.6954,
+      "xgb_auc": 0.6974,
+      "lightgbm_auc": 0.682
+    },
+    {
+      "fold": 5,
+      "month": "2025-07",
+      "auc": 0.6742,
+      "xgb_auc": 0.6717,
+      "lightgbm_auc": 0.6464
+    },
+    {
+      "fold": 6,
+      "month": "2025-08",
+      "auc": 0.6195,
+      "xgb_auc": 0.6181,
+      "lightgbm_auc": 0.6102
+    },
+    {
+      "fold": 7,
+      "month": "2025-09",
+      "auc": 0.6576,
+      "xgb_auc": 0.6568,
+      "lightgbm_auc": 0.6506
+    },
+    {
+      "fold": 8,
+      "month": "2025-10",
+      "auc": 0.6001,
+      "xgb_auc": 0.6009,
+      "lightgbm_auc": 0.5803
+    },
+    {
+      "fold": 9,
+      "month": "2025-11",
+      "auc": 0.5781,
+      "xgb_auc": 0.576,
+      "lightgbm_auc": 0.5751
+    },
+    {
+      "fold": 10,
+      "month": "2025-12",
+      "auc": 0.6389,
+      "xgb_auc": 0.6703,
+      "lightgbm_auc": 0.6017
+    },
+    {
+      "fold": 11,
+      "month": "2026-01",
+      "auc": 0.5164,
+      "xgb_auc": 0.5165,
+      "lightgbm_auc": 0.5187
+    },
+    {
+      "fold": 12,
+      "month": "2026-02",
+      "auc": 0.5009,
+      "xgb_auc": 0.4995,
+      "lightgbm_auc": 0.5022
+    },
+    {
+      "fold": 13,
+      "month": "2026-03",
+      "auc": 0.5807,
+      "xgb_auc": 0.5851,
+      "lightgbm_auc": 0.5624
+    }
+  ],
+  "ensemble_weights": {
+    "xgb": 0.6,
+    "lgbm": 0.4
+  },
+  "label_definition": "Target = prior-Friday-close to next-Friday-close return minus SPY weekly return >= 3%, sampled once per Monday.",
+  "model_family": "XGB+LGBM",
+  "feature_columns": [
+    "return_1",
+    "return_5",
+    "return_20",
+    "roc_10",
+    "volume_delta",
+    "volume_ratio",
+    "macd",
+    "macd_hist",
+    "rsi",
+    "atr",
+    "mfi",
+    "vwap_distance",
+    "adx",
+    "stoch_k",
+    "sma_50_gap",
+    "bollinger_position",
+    "price_vs_52w_high",
+    "weeks_since_earnings",
+    "sector_rs_rank",
+    "consecutive_up_days",
+    "gap_quality",
+    "gap_held",
+    "atr_percentile",
+    "trend_consistency",
+    "price_acceleration",
+    "volume_trend",
+    "resistance_distance",
+    "earnings_proximity_score",
+    "breadth_percentile"
+  ]
+}
