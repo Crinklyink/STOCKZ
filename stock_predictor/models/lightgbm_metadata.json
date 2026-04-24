@@ -1,5 +1,5 @@
 {
-  "trained_at": "2026-03-22T07:58:13.817196+00:00",
+  "trained_at": "2026-04-10T03:15:32.626189+00:00",
   "feature_columns": [
     "return_1",
     "return_5",
@@ -31,9 +31,9 @@
     "earnings_proximity_score",
     "breadth_percentile"
   ],
-  "auc": 0.5900307692307692,
+  "auc": 0.6200615384615384,
   "ensemble_weights": {
-    "xgb": 0.6,
-    "lgbm": 0.4
+    "xgb": 0.9,
+    "lgbm": 0.1
   }
 }

@@ -25,6 +25,8 @@ reportlab
 lightning
 pytorch-forecasting
 imbalanced-learn
+river
 PyQt6
 PyQt6-Charts
+PySide6
 py2app

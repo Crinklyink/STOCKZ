@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/debug/StockPredictorSwift'
+relocations:     []
+...

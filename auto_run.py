@@ -11,6 +11,9 @@ import pandas as pd
 
 from main import run_results, run_scan, run_training
 from stock_predictor.config import get_config
+from stock_predictor.data.cache import SQLiteCache
+from stock_predictor.data.fetcher import MarketDataFetcher
+from stock_predictor.models.adaptive_model import AdaptivePredictor
 from stock_predictor.output.alerts import send_email
 from stock_predictor.output.backtest import BacktestTracker, with_resolved_outcomes
 from stock_predictor.output.html_report import generate_weekly_html_report
@@ -229,6 +232,29 @@ def main() -> int:
     logger = configure_logging(WEEKLY_LOG)
     config = get_config()
     logger.info("Sunday automation started")
+    tracker = BacktestTracker(config.paper_trade_db)
+    fetcher = MarketDataFetcher(config, SQLiteCache(config.cache_db))
+    pending = tracker.paper_results_frame()
+    latest_prices = {}
+    if not pending.empty:
+        tickers = pending["ticker"].dropna().unique().tolist()
+        latest_prices = {
+            str(ticker): (
+                fetcher.fetch_info(str(ticker)).get("currentPrice")
+                or fetcher.fetch_info(str(ticker)).get("lastPrice")
+                or 0.0
+            )
+            for ticker in tickers
+        }
+        price_paths = fetcher.fetch_daily_frames_for_tickers(tickers, fresh=False, cache_only=False, period="6mo")
+        tracker.evaluate_due_paper_predictions(latest_prices, price_paths=price_paths)
+    adaptive = AdaptivePredictor(config)
+    feedback_summary = adaptive.apply_feedback(adaptive.feedback_rows_from_payloads(tracker.completed_payload_rows(paper=True, weeks=8)))
+    logger.info(
+        "Adaptive feedback updated rows=%s drifted_regimes=%s",
+        feedback_summary.get("updated_rows", 0),
+        ",".join(feedback_summary.get("drifted_regimes", [])) or "none",
+    )
     retrain_enabled = os.getenv("RETRAIN_MODEL_WEEKLY", "1") != "0"
     if retrain_enabled and should_run_training(config):
         training_text = run_training(fresh=False, universe_mode="full")

@@ -1,0 +1,383 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.StockPredictorSwift-arm64-apple-macosx-release.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/sources",
+      "importPath" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/DashboardScreen.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Design.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/HistorySettingsScreens.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Models.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/PicksScreen.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/StockPredictorApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/TrainingScreen.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "StockPredictorSwift",
+      "moduleOutputPath" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/Modules/StockPredictorSwift.swiftmodule",
+      "objects" : [
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.swift.o",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/ContentView.swift.o",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/DashboardScreen.swift.o",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Design.swift.o",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/HistorySettingsScreens.swift.o",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Models.swift.o",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/PicksScreen.swift.o",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorApp.swift.o",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/TrainingScreen.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-whole-module-optimization",
+        "-num-threads",
+        "10",
+        "-serialize-diagnostics",
+        "-O",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "StockPredictorSwift_main",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "swiftstockpredictor"
+      ],
+      "outputFileMapPath" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/DashboardScreen.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Design.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/HistorySettingsScreens.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Models.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/PicksScreen.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/TrainingScreen.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/Modules/StockPredictorSwift.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/ContentView.swift",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/DashboardScreen.swift",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Design.swift",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/HistorySettingsScreens.swift",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Models.swift",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/PicksScreen.swift",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/StockPredictorApp.swift",
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/TrainingScreen.swift"
+      ],
+      "tempsPath" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build",
+      "wholeModuleOptimization" : true
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "StockPredictorSwift" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "StockPredictorSwift",
+      "-package-name",
+      "swiftstockpredictor",
+      "-c",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/ContentView.swift",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/DashboardScreen.swift",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Design.swift",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/HistorySettingsScreens.swift",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Models.swift",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/PicksScreen.swift",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/StockPredictorApp.swift",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/TrainingScreen.swift",
+      "-I",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-whole-module-optimization",
+      "-num-threads",
+      "10",
+      "-serialize-diagnostics",
+      "-O",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "StockPredictorSwift_main",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "swiftstockpredictor",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "StockPredictorSwift" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/DashboardScreen.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Design.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/HistorySettingsScreens.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Models.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/PicksScreen.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/StockPredictorApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/TrainingScreen.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/sources"
+    },
+    "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/DashboardScreen.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Design.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/HistorySettingsScreens.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Models.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/PicksScreen.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/TrainingScreen.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.product/Objects.LinkFileList"
+    },
+    "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

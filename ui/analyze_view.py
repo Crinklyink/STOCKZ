@@ -71,12 +71,15 @@ class AnalyzeView(QWidget):
         self.ticker_input = QLineEdit()
         self.ticker_input.setPlaceholderText("Enter a ticker, e.g. AAPL")
         self.ticker_input.setFont(apple_font("text", 15, QFont.Weight.Medium))
+        self.ticker_input.setFixedWidth(260)
         self.ticker_input.returnPressed.connect(self.run_analysis)
         self.analyze_button = QPushButton("Analyze")
         style_primary_button(self.analyze_button)
+        self.analyze_button.setFixedWidth(120)
         self.analyze_button.clicked.connect(self.run_analysis)
-        input_row.addWidget(self.ticker_input, 1)
+        input_row.addWidget(self.ticker_input)
         input_row.addWidget(self.analyze_button)
+        input_row.addStretch(1)
         controls_layout.addLayout(input_row)
 
         self.status_label = QLabel("Type a ticker to run a full single-stock analysis.")
@@ -89,10 +92,12 @@ class AnalyzeView(QWidget):
         self.eligibility_pill = InfoPill("Awaiting analysis", "neutral")
         self.regime_pill = InfoPill("Regime --", "neutral")
         self.threshold_pill = InfoPill("Threshold --", "neutral")
+        self.model_pill = InfoPill("Model --", "neutral")
         self.universe_pill = InfoPill("Universe full", "neutral")
         pills_row.addWidget(self.eligibility_pill)
         pills_row.addWidget(self.regime_pill)
         pills_row.addWidget(self.threshold_pill)
+        pills_row.addWidget(self.model_pill)
         pills_row.addWidget(self.universe_pill)
         pills_row.addStretch(1)
         controls_layout.addLayout(pills_row)
@@ -135,12 +140,16 @@ class AnalyzeView(QWidget):
 
     def apply_theme(self) -> None:
         colors = theme_colors(self)
-        self.setStyleSheet(f"background: {css_color(colors['window'])};")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet(f"{self.__class__.__name__} {{ background-color: {css_color(colors['window'])}; }}")
         self.title.setStyleSheet(f"color: {css_color(colors['text'])};")
         self.subtitle.setStyleSheet(f"color: {css_color(colors['text_secondary'])};")
+        base_bg = css_color(colors["base"])
+        border_c = css_color(colors["border"])
         card_style = (
-            f"background: {css_color(colors['base'])}; "
-            f"border: 1px solid {css_color(colors['border'])}; border-radius: 12px;"
+            f"QFrame {{ background: {base_bg}; border: 1px solid {border_c}; border-radius: 8px; }}\n"
+            f"QLabel {{ background: transparent; border: none; }}\n"
+            f"QWidget {{ background: transparent; border: none; }}"
         )
         for panel in (self.controls_card, self.history_card, self.empty_card):
             panel.setStyleSheet(card_style)
@@ -150,7 +159,7 @@ class AnalyzeView(QWidget):
             QLineEdit {{
                 background: {css_color(colors['base'])};
                 color: {css_color(colors['text'])};
-                border: 1px solid {css_color(colors['border'])};
+                border: 1px solid rgba(255, 255, 255, 0.07);
                 border-radius: 8px;
                 padding: 8px 10px;
                 min-height: 34px;
@@ -167,6 +176,14 @@ class AnalyzeView(QWidget):
     def update_data(self, state: dict[str, Any]) -> None:
         self._universe_mode = str(state.get("settings", {}).get("universe", "full"))
         self.universe_pill.set_pill(f"Universe {self._universe_mode}", "neutral")
+        model_meta = state.get("model_metadata", {})
+        stack = str(model_meta.get("model_stack", "XGBoost"))
+        auc = float(model_meta.get("auc", 0.0) or 0.0)
+        profile = str(model_meta.get("selected_profile", "")).strip()
+        model_text = f"{stack} · AUC {auc:.3f}"
+        if profile:
+            model_text = f"{model_text} · {profile}"
+        self.model_pill.set_pill(model_text, "neutral")
         self._history_payloads = list(state.get("single_analysis_history", []))
         self._render_history_buttons()
         payload = state.get("single_analysis", {})
@@ -184,6 +201,7 @@ class AnalyzeView(QWidget):
         self.analyze_button.setEnabled(False)
         self.status_label.setText(f"Analyzing {ticker} with the live scoring stack…")
         self.worker = AnalyzeTickerWorker(self.project_root, ticker, universe_mode=self._universe_mode)
+        self.worker.setParent(None)  # Prevent app crash if view closes while running
         self.worker.progress_changed.connect(self._handle_progress)
         self.worker.analysis_finished.connect(self._handle_finished)
         self.worker.analysis_failed.connect(self._handle_failed)
@@ -206,10 +224,11 @@ class AnalyzeView(QWidget):
             ticker = str(payload.get("ticker", "--"))
             candidate = payload.get("candidate") or {}
             score = float(candidate.get("final_score", 0.0) or 0.0)
-            button = QPushButton(f"{ticker}  {score:.1f}")
+            button = QPushButton(f"{ticker}   {score:.1f}")
             style_secondary_button(button)
+            button.setMinimumHeight(44)
             button.clicked.connect(lambda checked=False, p=payload: self._render_payload(p))
-            self.history_grid.addWidget(button, index // 2, index % 2)
+            self.history_grid.addWidget(button, index // 4, index % 4)
 
     def _handle_progress(self, message: str) -> None:
         if message:
@@ -217,14 +236,18 @@ class AnalyzeView(QWidget):
 
     def _handle_finished(self, payload: dict[str, Any]) -> None:
         self.analyze_button.setEnabled(True)
-        self.worker = None
+        if self.worker is not None:
+            self.worker.deleteLater()
+            self.worker = None
         self._history_payloads = [payload, *[item for item in self._history_payloads if item.get("ticker") != payload.get("ticker")]]
         self._render_history_buttons()
         self._render_payload(payload)
 
     def _handle_failed(self, message: str) -> None:
         self.analyze_button.setEnabled(True)
-        self.worker = None
+        if self.worker is not None:
+            self.worker.deleteLater()
+            self.worker = None
         self.status_label.setText(message)
 
     def _render_payload(self, payload: dict[str, Any]) -> None:
@@ -274,7 +297,9 @@ class AnalyzeView(QWidget):
             self.content_layout.insertWidget(1, notes_card)
             colors = theme_colors(notes_card)
             notes_card.setStyleSheet(
-                f"background: {css_color(colors['base'])}; border: 1px solid {css_color(colors['border'])}; border-radius: 12px;"
+                f"background: {css_color(colors['base'])}; "
+                f"border: 1px solid rgba(255, 255, 255, 0.07); "
+                "border-radius: 8px;"
             )
             apply_card_shadow(notes_card, enabled=not is_dark_mode(notes_card))
             body.setStyleSheet(f"color: {css_color(colors['text'])};")

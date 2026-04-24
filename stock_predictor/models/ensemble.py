@@ -64,12 +64,22 @@ def build_tree_ensemble_output(
     confidence_label: str = "medium",
     model_family: str = "XGB+LGBM",
     blend_weights: Dict[str, float] | None = None,
+    model_spread_override: float | None = None,
+    score_uncertainty_override: float | None = None,
 ) -> EnsembleOutput:
     probabilities = [primary_probability]
     if secondary_probability is not None:
         probabilities.append(secondary_probability)
-    spread = max(probabilities) - min(probabilities) if len(probabilities) > 1 else 0.0
-    uncertainty = clamp(spread * 30.0, 2.0, 12.0) if len(probabilities) > 1 else 4.0
+    spread = (
+        float(model_spread_override)
+        if model_spread_override is not None
+        else max(probabilities) - min(probabilities) if len(probabilities) > 1 else 0.0
+    )
+    uncertainty = (
+        float(score_uncertainty_override)
+        if score_uncertainty_override is not None
+        else clamp(spread * 30.0, 2.0, 12.0) if len(probabilities) > 1 else 4.0
+    )
     return EnsembleOutput(
         probability=clamp(probability, 0.0, 1.0),
         lstm_probability=clamp(primary_probability, 0.0, 1.0),

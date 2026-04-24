@@ -47,6 +47,8 @@ class PatternWinRateAnalyzer:
         if cached is not None:
             return cached
         relevant = sector_universe.get(sector, [])
+        if not relevant:
+            relevant = list(price_frames.keys())
         outcomes = self._collect_outcomes(
             pattern_name,
             relevant,

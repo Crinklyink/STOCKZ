@@ -99,9 +99,12 @@ class SettingsView(QWidget):
         self.universe_group.addButton(self.us_market_radio)
 
         self.version_label = QLabel("Version: 3.0")
+        self.stack_label = QLabel("Model stack: --")
+        self.profile_label = QLabel("Profile: --")
         self.model_label = QLabel("Model trained: --")
         self.auc_label = QLabel("AUC: --")
         self.samples_label = QLabel("Samples: --")
+        self.blend_label = QLabel("Blend: --")
 
         self.retrain_button = QPushButton("Retrain Model Now")
         self.clear_cache_button = QPushButton("Clear Cache")
@@ -151,9 +154,12 @@ class SettingsView(QWidget):
         self.about_card = self._section_card("About")
         about_layout = QVBoxLayout(self.about_card)
         about_layout.addWidget(self.version_label)
+        about_layout.addWidget(self.stack_label)
+        about_layout.addWidget(self.profile_label)
         about_layout.addWidget(self.model_label)
         about_layout.addWidget(self.auc_label)
         about_layout.addWidget(self.samples_label)
+        about_layout.addWidget(self.blend_label)
         actions = QHBoxLayout()
         actions.addWidget(self.retrain_button)
         actions.addWidget(self.clear_cache_button)
@@ -214,8 +220,13 @@ class SettingsView(QWidget):
 
     def apply_theme(self) -> None:
         colors = theme_colors(self)
-        self.setStyleSheet(f"background: {css_color(colors['window'])};")
-        card_style = f"background: {css_color(colors['base'])}; border: 1px solid {css_color(colors['border'])}; border-radius: 12px;"
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet(f"{self.__class__.__name__} {{ background-color: {css_color(colors['window'])}; }}")
+        card_style = (
+            f"background: {css_color(colors['base'])}; "
+            f"border: 1px solid rgba(255, 255, 255, 0.07); "
+            "border-radius: 10px;"
+        )
         for card in (self.notifications_card, self.schedule_card, self.risk_card, self.universe_card, self.about_card):
             card.setStyleSheet(card_style)
             apply_card_shadow(card, enabled=not is_dark_mode(card))
@@ -225,14 +236,26 @@ class SettingsView(QWidget):
                 f"""
                 background: {css_color(colors['alt_base'])};
                 color: {css_color(colors['text'])};
-                border: 1px solid {css_color(colors['border'])};
+                border: 1px solid rgba(255, 255, 255, 0.07);
                 border-radius: 6px;
                 padding: 8px;
                 min-height: 34px;
                 selection-background-color: {css_color('#007AFF')};
                 """
             )
-        for label in (self.version_label, self.model_label, self.auc_label, self.samples_label, self.vix_value, self.score_value, self.rr_value, self.max_picks_value):
+        for label in (
+            self.version_label,
+            self.stack_label,
+            self.profile_label,
+            self.model_label,
+            self.auc_label,
+            self.samples_label,
+            self.blend_label,
+            self.vix_value,
+            self.score_value,
+            self.rr_value,
+            self.max_picks_value,
+        ):
             label.setFont(apple_font("text", 13))
             label.setStyleSheet(f"color: {css_color(colors['text_secondary'])};")
         for radio in (self.mini_radio, self.full_radio, self.us_market_radio):
@@ -249,7 +272,7 @@ class SettingsView(QWidget):
             QToolButton {{
                 background: transparent;
                 color: #007AFF;
-                border: 1px solid {css_color(colors['border'])};
+                border: 1px solid rgba(255, 255, 255, 0.07);
                 border-radius: 6px;
                 padding: 6px 10px;
             }}
@@ -282,9 +305,18 @@ class SettingsView(QWidget):
         self.full_radio.setChecked(universe not in {"mini", "us_market"})
 
         model_meta = state.get("model_metadata", {})
+        self.stack_label.setText(f"Model stack: {model_meta.get('model_stack', 'XGBoost')}")
+        self.profile_label.setText(f"Profile: {model_meta.get('profile_label', '--')}")
         self.model_label.setText(f"Model trained: {model_meta.get('trained_at', '--')[:16].replace('T', ' ')}")
         self.auc_label.setText(f"AUC: {float(model_meta.get('auc', 0.0)):.3f}")
         self.samples_label.setText(f"Samples: {int(model_meta.get('training_samples', 0)):,}")
+        weights = model_meta.get("ensemble_weights", {}) if isinstance(model_meta.get("ensemble_weights"), dict) else {}
+        if weights:
+            xgb_weight = float(weights.get("xgb", 0.0))
+            lgbm_weight = float(weights.get("lgbm", 0.0))
+            self.blend_label.setText(f"Blend: XGB {xgb_weight:.1f} · LGBM {lgbm_weight:.1f}")
+        else:
+            self.blend_label.setText("Blend: XGB only")
 
     def collect_settings(self) -> dict[str, Any]:
         return {

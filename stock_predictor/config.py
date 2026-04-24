@@ -214,6 +214,10 @@ SECTOR_ETFS = {
 class Thresholds:
     final_score_min: float = 60.0
     minimum_display_score: float = 40.0
+    defaulted_sentiment_penalty_points: float = 1.5
+    defaulted_flow_penalty_points: float = 2.0
+    multiple_defaulted_signals_penalty_points: float = 1.5
+    defaulted_signal_uncertainty_points: float = 1.5
     options_block_notional: float = 500_000.0
     sentiment_velocity_bullish: float = 3.0
     vix_risk_off: float = 28.0
@@ -274,6 +278,11 @@ class CacheTTLs:
 
 @dataclass(slots=True)
 class FeatureFlags:
+    adaptive_model: bool = True
+    online_learning: bool = True
+    feature_health_decay: bool = True
+    uncertainty_quantification: bool = True
+    adaptive_backtest: bool = True
     adaptive_weights: bool = True
     multi_timeframe_confirmation: bool = True
     smart_money_divergence: bool = True
@@ -317,6 +326,7 @@ class FeatureFlags:
     config_validation: bool = True
     defensive_stage1_rebalance: bool = True
     inference_alignment: bool = True
+    hyperparameter_search: bool = True
 
 
 @dataclass(slots=True)
@@ -376,6 +386,14 @@ class AppConfig:
     xgb_neutral_metadata_path: Path = MODEL_DIR / "xgboost_neutral_metadata.json"
     xgb_risk_off_path: Path = MODEL_DIR / "xgboost_risk_off.pkl"
     xgb_risk_off_metadata_path: Path = MODEL_DIR / "xgboost_risk_off_metadata.json"
+    adaptive_metadata_path: Path = MODEL_DIR / "adaptive_model_metadata.json"
+    online_learner_path: Path = MODEL_DIR / "online_learner.pkl"
+    feature_health_path: Path = MODEL_DIR / "feature_health.json"
+    regime_bull_quiet_path: Path = MODEL_DIR / "regime_bull_quiet.pkl"
+    regime_bull_volatile_path: Path = MODEL_DIR / "regime_bull_volatile.pkl"
+    regime_neutral_path: Path = MODEL_DIR / "regime_neutral.pkl"
+    regime_bear_volatile_path: Path = MODEL_DIR / "regime_bear_volatile.pkl"
+    regime_crisis_path: Path = MODEL_DIR / "regime_crisis.pkl"
     default_missing_signal_value: float = DEFAULT_MISSING_SIGNAL_VALUE
     model_trained: bool = False
     default_universe: str = os.getenv("DEFAULT_UNIVERSE", "full")
@@ -389,13 +407,29 @@ class AppConfig:
     benchmark_ticker: str = "SPY"
     breadth_ticker: str = "^SPXA50R"
     vix_ticker: str = "^VIX"
+    put_call_ticker: str = ""
     dxy_ticker: str = "DX-Y.NYB"
+    hyg_ticker: str = "HYG"
+    lqd_ticker: str = "LQD"
+    tlt_ticker: str = "TLT"
     ten_year_ticker: str = "^TNX"
     two_year_ticker: str = "^IRX"
-    training_lookback_days: int = 730
+    training_lookback_days: int = 1095
     training_history_period: str = "3y"
     training_sample_weekday: int = 0
     training_embargo_days: int = 5
+    training_recency_half_life_weeks: int = 26
+    training_recency_weight_floor: float = 0.35
+    training_profile_recent_folds: int = 4
+    adaptive_regime_min_samples: int = 180
+    adaptive_regime_recent_days: int = 183
+    adaptive_uncertainty_models: int = 20
+    adaptive_cv_models: int = 8
+    adaptive_backtest_models: int = 4
+    adaptive_uncertainty_warn: float = 0.10
+    adaptive_uncertainty_high: float = 0.15
+    adaptive_uncertainty_block: float = 0.20
+    adaptive_online_blend: float = 0.20
     hourly_interval: str = "60m"
     daily_period: str = "2y"
     intraday_period: str = "365d"
@@ -459,6 +493,16 @@ class AppConfig:
         for names in self.sector_universe.values():
             tickers.extend(names)
         return sorted(set(tickers))
+
+    @property
+    def adaptive_regime_paths(self) -> Dict[str, Path]:
+        return {
+            "bull_quiet": self.regime_bull_quiet_path,
+            "bull_volatile": self.regime_bull_volatile_path,
+            "neutral": self.regime_neutral_path,
+            "bear_volatile": self.regime_bear_volatile_path,
+            "crisis": self.regime_crisis_path,
+        }
 
 
 def get_config() -> AppConfig:

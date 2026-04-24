@@ -90,7 +90,10 @@ class XGBOutput:
     lightgbm_probability: float | None = None
     blend_weights: Dict[str, float] = field(default_factory=lambda: {"xgb": 0.6, "lgbm": 0.4})
     model_spread: float = 0.0
+    score_uncertainty: float = 4.0
     confidence_label: str = "medium"
+    regime: str = "neutral"
+    position_size_pct: float = 0.02
 
 
 @dataclass(slots=True)
@@ -114,6 +117,7 @@ class TrainingReport:
     ensemble_weights: Dict[str, float] = field(default_factory=lambda: {"xgb": 0.6, "lgbm": 0.4})
     label_definition: str = LABEL_DEFINITION
     model_family: str = "XGB+LGBM"
+    selected_profile: str = "baseline"
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
@@ -140,6 +144,8 @@ class XGBoostPredictor:
         self.regime_models: Dict[str, object] = {}
         self.regime_feature_columns: Dict[str, List[str]] = {}
         self.blend_weights: Dict[str, float] = {"xgb": 0.6, "lgbm": 0.4}
+        self.selected_profile: str = "baseline"
+        self.active_profile_config: Dict[str, object] | None = None
         self.last_report: TrainingReport | None = None
         self._load_persisted_model()
         self._load_regime_models()
@@ -193,7 +199,13 @@ class XGBoostPredictor:
             return report
 
         dataset = dataset.sort_values("date").reset_index(drop=True)
-        cv_result = self._walk_forward_cv(dataset)
+        selected_profile = self._default_training_profile()
+        if self.config.feature_flags.hyperparameter_search:
+            selected_profile, cv_result = self._search_training_profile(dataset)
+        else:
+            cv_result = self._walk_forward_cv(dataset, profile=selected_profile)
+        self.selected_profile = str(selected_profile.get("name", "baseline"))
+        self.active_profile_config = dict(selected_profile)
         split = max(int(len(dataset) * 0.8), min(200, len(dataset) - 1))
         train = dataset.iloc[:split]
         valid = dataset.iloc[split:]
@@ -221,11 +233,27 @@ class XGBoostPredictor:
         self.feature_columns = FEATURE_COLUMNS.copy()
         for _ in range(4):
             self.feature_columns = self._select_feature_columns(train, valid, blacklist=self.blacklisted_features)
-            xgb_model = self._build_model(scale_pos_weight=scale_pos_weight)
-            lightgbm_model = self._build_lightgbm_model(scale_pos_weight=scale_pos_weight)
+            xgb_model = self._build_model(
+                scale_pos_weight=scale_pos_weight,
+                overrides=selected_profile.get("xgb_params"),
+            )
+            lightgbm_model = self._build_lightgbm_model(
+                scale_pos_weight=scale_pos_weight,
+                overrides=selected_profile.get("lgbm_params"),
+                enabled=bool(selected_profile.get("use_lightgbm", True)),
+            )
 
-            xgb_train_x, xgb_train_y = self._balance_training_data(train[self.feature_columns], train["target"])
-            xgb_fit_kwargs = self._fit_kwargs(xgb_model, xgb_train_y, scale_pos_weight)
+            xgb_train_x, xgb_train_y, xgb_train_dates = self._balance_training_data(
+                train[self.feature_columns],
+                train["target"],
+                sample_dates=train["date"],
+            )
+            xgb_fit_kwargs = self._fit_kwargs(
+                xgb_model,
+                xgb_train_y,
+                scale_pos_weight,
+                sample_dates=xgb_train_dates,
+            )
             xgb_model.fit(xgb_train_x, xgb_train_y, **xgb_fit_kwargs)
 
             xgb_calibrator = self._calibrate_model(xgb_model, valid[self.feature_columns], valid["target"])
@@ -240,11 +268,17 @@ class XGBoostPredictor:
             lightgbm_auc = 0.5
             lightgbm_calibrator = None
             if lightgbm_model is not None:
-                lightgbm_train_x, lightgbm_train_y = self._balance_training_data(
+                lightgbm_train_x, lightgbm_train_y, lightgbm_train_dates = self._balance_training_data(
                     train[self.feature_columns],
                     train["target"],
+                    sample_dates=train["date"],
                 )
-                lightgbm_fit_kwargs = self._fit_kwargs(lightgbm_model, lightgbm_train_y, scale_pos_weight)
+                lightgbm_fit_kwargs = self._fit_kwargs(
+                    lightgbm_model,
+                    lightgbm_train_y,
+                    scale_pos_weight,
+                    sample_dates=lightgbm_train_dates,
+                )
                 lightgbm_model.fit(lightgbm_train_x, lightgbm_train_y, **lightgbm_fit_kwargs)
                 lightgbm_calibrator = self._calibrate_model(
                     lightgbm_model,
@@ -262,9 +296,10 @@ class XGBoostPredictor:
                     else 0.5
                 )
 
-            self.blend_weights = self._blend_weights_from_aucs(
-                cv_result.get("xgb_auc", xgb_auc),
-                cv_result.get("lightgbm_auc", lightgbm_auc),
+            self.blend_weights = self._resolve_blend_weights(
+                selected_profile,
+                float(cv_result.get("xgb_auc", xgb_auc)),
+                float(cv_result.get("lightgbm_auc", lightgbm_auc)),
                 lightgbm_available=lightgbm_model is not None,
             )
             ensemble_probabilities = (
@@ -312,6 +347,7 @@ class XGBoostPredictor:
             ensemble_auc=float(cv_result.get("ensemble_auc", ensemble_auc)),
             fold_aucs=list(cv_result.get("rows", [])),
             ensemble_weights=self.blend_weights.copy(),
+            selected_profile=self.selected_profile,
         )
 
         self.model = xgb_model
@@ -324,7 +360,11 @@ class XGBoostPredictor:
         self.enabled = True
         if save_model:
             self._save_model(report)
-        self._train_regime_models(dataset, save_model=save_model)
+        self._train_regime_models(
+            dataset,
+            save_model=save_model,
+            xgb_overrides=selected_profile.get("xgb_params"),
+        )
         return report
 
     def build_training_frame(
@@ -411,6 +451,7 @@ class XGBoostPredictor:
         benchmark_history: pd.DataFrame | None = None,
         breadth_history: pd.Series | pd.DataFrame | None = None,
         weeks: int = 12,
+        profile: Dict[str, object] | None = None,
     ) -> Dict[str, object]:
         dataset = self.build_training_frame(
             daily_frames,
@@ -425,6 +466,13 @@ class XGBoostPredictor:
         latest = dataset["date"].max().normalize()
         rows = []
         weekly_returns = []
+        active_profile = profile or self.active_profile_config or {
+            "name": self.selected_profile,
+            "blend_weights": self.blend_weights.copy(),
+            "use_lightgbm": self.lightgbm_model is not None,
+            "xgb_params": {},
+            "lgbm_params": {},
+        }
         for offset in range(weeks, 0, -1):
             week_start = latest - pd.Timedelta(weeks=offset - 1)
             train = self._purge_train_rows(dataset, test_start=week_start)
@@ -435,12 +483,19 @@ class XGBoostPredictor:
                 continue
             feature_columns = [column for column in FEATURE_COLUMNS if column in train.columns and column in evaluate.columns]
             scale_pos_weight = float((train["target"] == 0).sum() / max(int(train["target"].sum()), 1))
-            xgb_model = self._build_model(scale_pos_weight=scale_pos_weight)
-            xgb_train_x, xgb_train_y = self._balance_training_data(train[feature_columns], train["target"])
+            xgb_model = self._build_model(
+                scale_pos_weight=scale_pos_weight,
+                overrides=active_profile.get("xgb_params"),
+            )
+            xgb_train_x, xgb_train_y, xgb_train_dates = self._balance_training_data(
+                train[feature_columns],
+                train["target"],
+                sample_dates=train["date"],
+            )
             xgb_model.fit(
                 xgb_train_x,
                 xgb_train_y,
-                **self._fit_kwargs(xgb_model, xgb_train_y, scale_pos_weight),
+                **self._fit_kwargs(xgb_model, xgb_train_y, scale_pos_weight, sample_dates=xgb_train_dates),
             )
             xgb_probs = self._predict_model_probabilities(xgb_model, evaluate[feature_columns], None)
             xgb_auc = float(roc_auc_score(evaluate["target"], xgb_probs)) if evaluate["target"].nunique() > 1 else 0.5
@@ -448,13 +503,21 @@ class XGBoostPredictor:
             lightgbm_auc = 0.5
             lightgbm_model = None
             if self.config.feature_flags.lightgbm_ensemble and LGBMClassifier is not None:
-                lgbm_model = self._build_lightgbm_model(scale_pos_weight=scale_pos_weight)
+                lgbm_model = self._build_lightgbm_model(
+                    scale_pos_weight=scale_pos_weight,
+                    overrides=active_profile.get("lgbm_params"),
+                    enabled=bool(active_profile.get("use_lightgbm", True)),
+                )
                 if lgbm_model is not None:
-                    lgbm_train_x, lgbm_train_y = self._balance_training_data(train[feature_columns], train["target"])
+                    lgbm_train_x, lgbm_train_y, lgbm_train_dates = self._balance_training_data(
+                        train[feature_columns],
+                        train["target"],
+                        sample_dates=train["date"],
+                    )
                     lgbm_model.fit(
                         lgbm_train_x,
                         lgbm_train_y,
-                        **self._fit_kwargs(lgbm_model, lgbm_train_y, scale_pos_weight),
+                        **self._fit_kwargs(lgbm_model, lgbm_train_y, scale_pos_weight, sample_dates=lgbm_train_dates),
                     )
                     lgbm_probs = self._predict_model_probabilities(lgbm_model, evaluate[feature_columns], None)
                     lightgbm_auc = (
@@ -462,7 +525,8 @@ class XGBoostPredictor:
                         if evaluate["target"].nunique() > 1
                         else 0.5
                     )
-            weights = self._blend_weights_from_aucs(
+            weights = self._resolve_blend_weights(
+                active_profile,
                 xgb_auc,
                 lightgbm_auc,
                 lightgbm_available=lightgbm_model is not None,
@@ -508,6 +572,42 @@ class XGBoostPredictor:
                 f"| {row['week']} | {row['picks']} | {row['win_rate']:.2f}% | {row['avg_return']:.2f}% |"
             )
         return {"rows": rows, "summary": summary, "markdown": "\n".join(markdown_lines)}
+
+    def _evaluate_trade_basket(
+        self,
+        evaluate: pd.DataFrame,
+        probabilities: np.ndarray,
+        *,
+        picks_per_date: int = 5,
+    ) -> Dict[str, float]:
+        if evaluate.empty or len(probabilities) != len(evaluate):
+            return {
+                "trade_win_rate": 0.0,
+                "trade_average_return": 0.0,
+                "trade_average_excess_return": 0.0,
+                "trade_picks": 0.0,
+            }
+        scored = evaluate.copy()
+        scored["probability"] = probabilities
+        baskets: List[pd.DataFrame] = []
+        for _, group in scored.groupby("date", sort=True):
+            ordered = group.sort_values("probability", ascending=False).head(min(picks_per_date, len(group)))
+            if not ordered.empty:
+                baskets.append(ordered)
+        if not baskets:
+            return {
+                "trade_win_rate": 0.0,
+                "trade_average_return": 0.0,
+                "trade_average_excess_return": 0.0,
+                "trade_picks": 0.0,
+            }
+        basket = pd.concat(baskets, ignore_index=True)
+        return {
+            "trade_win_rate": float((basket["target"] == 1).mean()),
+            "trade_average_return": float(basket["future_return"].mean()),
+            "trade_average_excess_return": float(basket["future_excess_return"].mean()),
+            "trade_picks": float(len(basket)),
+        }
 
     def predict_proba(
         self,
@@ -572,11 +672,20 @@ class XGBoostPredictor:
                     self.lightgbm_calibrator,
                 )[0]
             )
-        weights = self._blend_weights_from_aucs(
-            self.last_report.xgb_auc if self.last_report else 0.5,
-            self.last_report.lightgbm_auc if self.last_report else 0.5,
-            lightgbm_available=lightgbm_probability is not None,
-        )
+        weights = self.blend_weights.copy() if lightgbm_probability is not None else {"xgb": 1.0, "lgbm": 0.0}
+        if lightgbm_probability is not None:
+            total = float(weights.get("xgb", 0.0)) + float(weights.get("lgbm", 0.0))
+            if total <= 0:
+                weights = self._blend_weights_from_aucs(
+                    self.last_report.xgb_auc if self.last_report else 0.5,
+                    self.last_report.lightgbm_auc if self.last_report else 0.5,
+                    lightgbm_available=True,
+                )
+            else:
+                weights = {
+                    "xgb": float(weights.get("xgb", 0.0)) / total,
+                    "lgbm": float(weights.get("lgbm", 0.0)) / total,
+                }
         if lightgbm_probability is None:
             probability = xgb_probability
             spread = 0.0
@@ -733,26 +842,29 @@ class XGBoostPredictor:
         augmented = pd.concat([augmented, synthetic])
         return self._prepare_frame(augmented, **kwargs)
 
-    def _build_model(self, *, scale_pos_weight: float = 1.0):
+    def _build_model(self, *, scale_pos_weight: float = 1.0, overrides: Dict[str, object] | None = None):
+        xgb_params = {
+            "max_depth": 5,
+            "n_estimators": 420,
+            "learning_rate": 0.03,
+            "subsample": 0.85,
+            "colsample_bytree": 0.6,
+            "objective": "binary:logistic",
+            "eval_metric": "auc",
+            "scale_pos_weight": scale_pos_weight,
+            "tree_method": "hist",
+            "max_delta_step": 1,
+            "min_child_weight": 4,
+            "gamma": 0.05,
+            "reg_alpha": 0.3,
+            "reg_lambda": 2.0,
+            "random_state": 42,
+            "n_jobs": 4,
+        }
+        if overrides:
+            xgb_params.update(overrides)
         if XGBClassifier is not None:
-            return XGBClassifier(
-                max_depth=5,
-                n_estimators=420,
-                learning_rate=0.03,
-                subsample=0.85,
-                colsample_bytree=0.6,
-                objective="binary:logistic",
-                eval_metric="auc",
-                scale_pos_weight=scale_pos_weight,
-                tree_method="hist",
-                max_delta_step=1,
-                min_child_weight=4,
-                gamma=0.05,
-                reg_alpha=0.3,
-                reg_lambda=2.0,
-                random_state=42,
-                n_jobs=4,
-            )
+            return XGBClassifier(**xgb_params)
         return RandomForestClassifier(
             n_estimators=300,
             max_depth=7,
@@ -762,23 +874,32 @@ class XGBoostPredictor:
             n_jobs=-1,
         )
 
-    def _build_lightgbm_model(self, *, scale_pos_weight: float = 1.0):
-        if not self.config.feature_flags.lightgbm_ensemble or LGBMClassifier is None:
+    def _build_lightgbm_model(
+        self,
+        *,
+        scale_pos_weight: float = 1.0,
+        overrides: Dict[str, object] | None = None,
+        enabled: bool = True,
+    ):
+        if enabled is False or not self.config.feature_flags.lightgbm_ensemble or LGBMClassifier is None:
             return None
-        return LGBMClassifier(
-            n_estimators=420,
-            learning_rate=0.03,
-            num_leaves=47,
-            subsample=0.85,
-            colsample_bytree=0.6,
-            min_child_samples=30,
-            reg_alpha=0.3,
-            reg_lambda=2.0,
-            scale_pos_weight=scale_pos_weight,
-            random_state=42,
-            verbosity=-1,
-            n_jobs=4,
-        )
+        lgbm_params = {
+            "n_estimators": 420,
+            "learning_rate": 0.03,
+            "num_leaves": 47,
+            "subsample": 0.85,
+            "colsample_bytree": 0.6,
+            "min_child_samples": 30,
+            "reg_alpha": 0.3,
+            "reg_lambda": 2.0,
+            "scale_pos_weight": scale_pos_weight,
+            "random_state": 42,
+            "verbosity": -1,
+            "n_jobs": 4,
+        }
+        if overrides:
+            lgbm_params.update(overrides)
+        return LGBMClassifier(**lgbm_params)
 
     def _predict_model_probabilities(self, model, features: pd.DataFrame, calibrator) -> np.ndarray:
         if calibrator is not None and hasattr(calibrator, "predict_proba"):
@@ -798,13 +919,24 @@ class XGBoostPredictor:
             LOGGER.debug("Probability calibration failed", exc_info=True)
             return None
 
-    def _fit_kwargs(self, model, target: pd.Series, scale_pos_weight: float) -> Dict[str, object]:
+    def _fit_kwargs(
+        self,
+        model,
+        target: pd.Series,
+        scale_pos_weight: float,
+        *,
+        sample_dates: pd.Series | None = None,
+    ) -> Dict[str, object]:
+        recency_weights = self._recency_sample_weights(sample_dates, len(target))
         if XGBClassifier is not None and isinstance(model, XGBClassifier):
-            return {}
+            return {"sample_weight": recency_weights} if recency_weights is not None else {}
         if LGBMClassifier is not None and isinstance(model, LGBMClassifier):
-            sample_weight = np.where(np.asarray(target) == 1, scale_pos_weight, 1.0)
-            return {"sample_weight": sample_weight}
-        sample_weight = np.where(np.asarray(target) == 1, scale_pos_weight, 1.0)
+            return {"sample_weight": recency_weights} if recency_weights is not None else {}
+        class_weights = np.where(np.asarray(target) == 1, scale_pos_weight, 1.0)
+        if recency_weights is not None:
+            sample_weight = class_weights * recency_weights
+        else:
+            sample_weight = class_weights
         return {"sample_weight": sample_weight}
 
     def _combined_feature_importance(
@@ -954,7 +1086,13 @@ class XGBoostPredictor:
                 ensemble_weights=self.blend_weights.copy(),
                 label_definition=str(metadata.get("label_definition", LABEL_DEFINITION)),
                 model_family=str(metadata.get("model_family", "XGB+LGBM")),
+                selected_profile=str(metadata.get("selected_profile", "baseline")),
             )
+            self.selected_profile = self.last_report.selected_profile
+            self.active_profile_config = {
+                "name": self.last_report.selected_profile,
+                "blend_weights": self.blend_weights.copy(),
+            }
         except Exception:
             LOGGER.debug("Failed to load persisted tree ensemble", exc_info=True)
             self.model = None
@@ -990,21 +1128,42 @@ class XGBoostPredictor:
         )
         return clamp(float(score), 0.0, 1.0)
 
-    def _balance_training_data(self, features: pd.DataFrame, target: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
+    def _balance_training_data(
+        self,
+        features: pd.DataFrame,
+        target: pd.Series,
+        *,
+        sample_dates: pd.Series | None = None,
+    ) -> tuple[pd.DataFrame, pd.Series, pd.Series | None]:
         positives = int(target.sum())
         negatives = int(len(target) - positives)
         if positives == 0 or negatives == 0:
-            return features, target
+            return features, target, sample_dates
         positive_ratio = positives / max(len(target), 1)
         minority_ratio = min(positives, negatives) / max(len(target), 1)
         if minority_ratio >= 0.40:
-            return features, target
+            return features, target, sample_dates
         # Weekly excess-return labels are imbalanced, but not rare enough to justify
         # aggressive synthetic oversampling until the positive class gets truly sparse.
         if SMOTE is not None and positive_ratio < 0.15:
             sampler = SMOTE(random_state=42)
             balanced_x, balanced_y = sampler.fit_resample(features, target)
-            return pd.DataFrame(balanced_x, columns=features.columns), pd.Series(balanced_y, name=target.name)
+            balanced_dates = None
+            if sample_dates is not None and not sample_dates.empty:
+                latest_date = pd.to_datetime(sample_dates, utc=True).max()
+                synthetic_count = len(balanced_x) - len(features)
+                balanced_dates = pd.concat(
+                    [
+                        pd.Series(pd.to_datetime(sample_dates, utc=True).to_numpy()),
+                        pd.Series([latest_date] * max(synthetic_count, 0)),
+                    ],
+                    ignore_index=True,
+                )
+            return (
+                pd.DataFrame(balanced_x, columns=features.columns),
+                pd.Series(balanced_y, name=target.name),
+                balanced_dates,
+            )
         if positives < negatives:
             positive_frame = features.loc[target == 1]
             needed = negatives - positives
@@ -1014,8 +1173,32 @@ class XGBoostPredictor:
                 np.concatenate([target.to_numpy(), np.ones(len(extra), dtype=int)]),
                 name=target.name,
             )
-            return balanced_x, balanced_y
-        return features, target
+            balanced_dates = None
+            if sample_dates is not None:
+                positive_dates = pd.to_datetime(sample_dates.loc[target == 1], utc=True)
+                extra_dates = positive_dates.sample(n=needed, replace=True, random_state=42)
+                balanced_dates = pd.concat(
+                    [pd.Series(pd.to_datetime(sample_dates, utc=True).to_numpy()), extra_dates.reset_index(drop=True)],
+                    ignore_index=True,
+                )
+            return balanced_x, balanced_y, balanced_dates
+        return features, target, sample_dates
+
+    def _recency_sample_weights(self, sample_dates: pd.Series | None, length: int) -> np.ndarray | None:
+        if sample_dates is None:
+            return None
+        dates = pd.to_datetime(sample_dates, utc=True, errors="coerce")
+        if len(dates) != length:
+            return None
+        valid = pd.Series(dates).dropna()
+        if valid.empty:
+            return None
+        latest = valid.max()
+        age_days = (latest - pd.Series(dates)).dt.days.fillna(0.0).clip(lower=0.0)
+        half_life_days = max(int(self.config.training_recency_half_life_weeks * 7), 7)
+        weights = np.exp(-np.log(2.0) * age_days.to_numpy(dtype=float) / float(half_life_days))
+        floor = clamp(float(self.config.training_recency_weight_floor), 0.0, 1.0)
+        return np.clip(weights, floor, 1.0)
 
     def _build_sector_rank_frame(self, sector_histories: Dict[str, pd.DataFrame]) -> Dict[str, pd.Series]:
         usable = {
@@ -1128,7 +1311,7 @@ class XGBoostPredictor:
         future_high = pd.concat([high.shift(-offset) for offset in range(1, self.label_window_days + 1)], axis=1).max(axis=1)
         return future_high / close.replace(0, np.nan) - 1.0
 
-    def _walk_forward_cv(self, dataset: pd.DataFrame) -> Dict[str, object]:
+    def _walk_forward_cv(self, dataset: pd.DataFrame, *, profile: Dict[str, object] | None = None) -> Dict[str, object]:
         frame = dataset.copy()
         frame["date"] = pd.to_datetime(frame["date"], utc=True)
         frame["label_end_date"] = pd.to_datetime(frame["label_end_date"], utc=True)
@@ -1151,12 +1334,20 @@ class XGBoostPredictor:
             neg_count = int(len(train) - pos_count)
             scale_pos_weight = float(neg_count / max(pos_count, 1))
 
-            xgb_model = self._build_model(scale_pos_weight=scale_pos_weight)
-            xgb_train_x, xgb_train_y = self._balance_training_data(train[feature_columns], train["target"])
+            profile = profile or self._default_training_profile()
+            xgb_model = self._build_model(
+                scale_pos_weight=scale_pos_weight,
+                overrides=profile.get("xgb_params"),
+            )
+            xgb_train_x, xgb_train_y, xgb_train_dates = self._balance_training_data(
+                train[feature_columns],
+                train["target"],
+                sample_dates=train["date"],
+            )
             xgb_model.fit(
                 xgb_train_x,
                 xgb_train_y,
-                **self._fit_kwargs(xgb_model, xgb_train_y, scale_pos_weight),
+                **self._fit_kwargs(xgb_model, xgb_train_y, scale_pos_weight, sample_dates=xgb_train_dates),
             )
             xgb_probs = self._predict_model_probabilities(xgb_model, test[feature_columns], None)
             xgb_auc = float(roc_auc_score(test["target"], xgb_probs))
@@ -1164,21 +1355,30 @@ class XGBoostPredictor:
             lightgbm_auc = 0.5
             lightgbm_probs = np.full(len(test), 0.5, dtype=float)
             lightgbm_available = False
-            lightgbm_model = self._build_lightgbm_model(scale_pos_weight=scale_pos_weight)
+            lightgbm_model = self._build_lightgbm_model(
+                scale_pos_weight=scale_pos_weight,
+                overrides=profile.get("lgbm_params"),
+                enabled=bool(profile.get("use_lightgbm", True)),
+            )
             if lightgbm_model is not None:
-                lgbm_train_x, lgbm_train_y = self._balance_training_data(train[feature_columns], train["target"])
+                lgbm_train_x, lgbm_train_y, lgbm_train_dates = self._balance_training_data(
+                    train[feature_columns],
+                    train["target"],
+                    sample_dates=train["date"],
+                )
                 lightgbm_model.fit(
                     lgbm_train_x,
                     lgbm_train_y,
-                    **self._fit_kwargs(lightgbm_model, lgbm_train_y, scale_pos_weight),
+                    **self._fit_kwargs(lightgbm_model, lgbm_train_y, scale_pos_weight, sample_dates=lgbm_train_dates),
                 )
                 lightgbm_probs = self._predict_model_probabilities(lightgbm_model, test[feature_columns], None)
                 lightgbm_auc = float(roc_auc_score(test["target"], lightgbm_probs))
                 lightgbm_available = True
 
-            weights = self._blend_weights_from_aucs(xgb_auc, lightgbm_auc, lightgbm_available=lightgbm_available)
+            weights = self._resolve_blend_weights(profile, xgb_auc, lightgbm_auc, lightgbm_available=lightgbm_available)
             ensemble_probs = weights["xgb"] * xgb_probs + weights["lgbm"] * lightgbm_probs
             ensemble_auc = float(roc_auc_score(test["target"], ensemble_probs))
+            trade_metrics = self._evaluate_trade_basket(test, ensemble_probs)
             rows.append(
                 {
                     "fold": fold_index,
@@ -1186,16 +1386,257 @@ class XGBoostPredictor:
                     "auc": round(ensemble_auc, 4),
                     "xgb_auc": round(xgb_auc, 4),
                     "lightgbm_auc": round(lightgbm_auc, 4),
+                    "trade_win_rate": round(float(trade_metrics["trade_win_rate"]), 4),
+                    "trade_average_return": round(float(trade_metrics["trade_average_return"]), 4),
+                    "trade_average_excess_return": round(float(trade_metrics["trade_average_excess_return"]), 4),
                 }
             )
         if not rows:
-            return {"rows": rows, "xgb_auc": 0.5, "lightgbm_auc": 0.5, "ensemble_auc": 0.5}
+            return {
+                "rows": rows,
+                "xgb_auc": 0.5,
+                "lightgbm_auc": 0.5,
+                "ensemble_auc": 0.5,
+                "trade_win_rate": 0.0,
+                "trade_average_return": 0.0,
+                "trade_average_excess_return": 0.0,
+            }
         return {
             "rows": rows,
             "xgb_auc": float(np.mean([row["xgb_auc"] for row in rows])),
             "lightgbm_auc": float(np.mean([row["lightgbm_auc"] for row in rows])),
             "ensemble_auc": float(np.mean([row["auc"] for row in rows])),
+            "trade_win_rate": float(np.mean([row["trade_win_rate"] for row in rows])),
+            "trade_average_return": float(np.mean([row["trade_average_return"] for row in rows])),
+            "trade_average_excess_return": float(np.mean([row["trade_average_excess_return"] for row in rows])),
         }
+
+    def _default_training_profile(self) -> Dict[str, object]:
+        return {
+            "name": "baseline",
+            "xgb_params": {},
+            "lgbm_params": {},
+            "use_lightgbm": True,
+            "blend_weights": None,
+        }
+
+    def _candidate_training_profiles(self) -> List[Dict[str, object]]:
+        return [
+            self._default_training_profile(),
+            {
+                "name": "xgb_only_recent",
+                "xgb_params": {
+                    "max_depth": 5,
+                    "n_estimators": 520,
+                    "learning_rate": 0.025,
+                    "subsample": 0.9,
+                    "colsample_bytree": 0.55,
+                    "min_child_weight": 5,
+                    "gamma": 0.08,
+                    "reg_alpha": 0.4,
+                    "reg_lambda": 2.5,
+                },
+                "lgbm_params": {},
+                "use_lightgbm": False,
+                "blend_weights": {"xgb": 1.0, "lgbm": 0.0},
+            },
+            {
+                "name": "regularized_ensemble",
+                "xgb_params": {
+                    "max_depth": 4,
+                    "n_estimators": 560,
+                    "learning_rate": 0.022,
+                    "subsample": 0.9,
+                    "colsample_bytree": 0.5,
+                    "min_child_weight": 6,
+                    "gamma": 0.10,
+                    "reg_alpha": 0.6,
+                    "reg_lambda": 3.0,
+                },
+                "lgbm_params": {
+                    "n_estimators": 520,
+                    "learning_rate": 0.024,
+                    "num_leaves": 31,
+                    "subsample": 0.9,
+                    "colsample_bytree": 0.55,
+                    "min_child_samples": 40,
+                    "reg_alpha": 0.4,
+                    "reg_lambda": 3.0,
+                },
+                "use_lightgbm": True,
+                "blend_weights": {"xgb": 0.7, "lgbm": 0.3},
+            },
+            {
+                "name": "higher_capacity_ensemble",
+                "xgb_params": {
+                    "max_depth": 6,
+                    "n_estimators": 480,
+                    "learning_rate": 0.025,
+                    "subsample": 0.82,
+                    "colsample_bytree": 0.7,
+                    "min_child_weight": 5,
+                    "gamma": 0.03,
+                    "reg_alpha": 0.25,
+                    "reg_lambda": 2.0,
+                },
+                "lgbm_params": {
+                    "n_estimators": 480,
+                    "learning_rate": 0.025,
+                    "num_leaves": 63,
+                    "subsample": 0.82,
+                    "colsample_bytree": 0.7,
+                    "min_child_samples": 24,
+                    "reg_alpha": 0.2,
+                    "reg_lambda": 2.0,
+                },
+                "use_lightgbm": True,
+                "blend_weights": {"xgb": 0.65, "lgbm": 0.35},
+            },
+            {
+                "name": "slow_xgb_focus",
+                "xgb_params": {
+                    "max_depth": 4,
+                    "n_estimators": 900,
+                    "learning_rate": 0.015,
+                    "subsample": 0.88,
+                    "colsample_bytree": 0.48,
+                    "min_child_weight": 7,
+                    "gamma": 0.12,
+                    "reg_alpha": 0.8,
+                    "reg_lambda": 4.0,
+                },
+                "lgbm_params": {},
+                "use_lightgbm": False,
+                "blend_weights": {"xgb": 1.0, "lgbm": 0.0},
+            },
+            {
+                "name": "slow_balanced_ensemble",
+                "xgb_params": {
+                    "max_depth": 4,
+                    "n_estimators": 820,
+                    "learning_rate": 0.016,
+                    "subsample": 0.88,
+                    "colsample_bytree": 0.5,
+                    "min_child_weight": 7,
+                    "gamma": 0.10,
+                    "reg_alpha": 0.7,
+                    "reg_lambda": 3.5,
+                },
+                "lgbm_params": {
+                    "n_estimators": 760,
+                    "learning_rate": 0.018,
+                    "num_leaves": 39,
+                    "subsample": 0.88,
+                    "colsample_bytree": 0.5,
+                    "min_child_samples": 50,
+                    "reg_alpha": 0.5,
+                    "reg_lambda": 3.5,
+                },
+                "use_lightgbm": True,
+                "blend_weights": {"xgb": 0.75, "lgbm": 0.25},
+            },
+            {
+                "name": "shallow_robust_ensemble",
+                "xgb_params": {
+                    "max_depth": 3,
+                    "n_estimators": 760,
+                    "learning_rate": 0.018,
+                    "subsample": 0.92,
+                    "colsample_bytree": 0.45,
+                    "min_child_weight": 8,
+                    "gamma": 0.14,
+                    "reg_alpha": 0.9,
+                    "reg_lambda": 4.5,
+                },
+                "lgbm_params": {
+                    "n_estimators": 680,
+                    "learning_rate": 0.02,
+                    "num_leaves": 31,
+                    "subsample": 0.9,
+                    "colsample_bytree": 0.48,
+                    "min_child_samples": 55,
+                    "reg_alpha": 0.6,
+                    "reg_lambda": 4.0,
+                },
+                "use_lightgbm": True,
+                "blend_weights": {"xgb": 0.8, "lgbm": 0.2},
+            },
+            {
+                "name": "shallow_xgb_dominant",
+                "xgb_params": {
+                    "max_depth": 3,
+                    "n_estimators": 820,
+                    "learning_rate": 0.017,
+                    "subsample": 0.92,
+                    "colsample_bytree": 0.44,
+                    "min_child_weight": 8,
+                    "gamma": 0.15,
+                    "reg_alpha": 1.0,
+                    "reg_lambda": 4.8,
+                },
+                "lgbm_params": {
+                    "n_estimators": 620,
+                    "learning_rate": 0.021,
+                    "num_leaves": 31,
+                    "subsample": 0.88,
+                    "colsample_bytree": 0.46,
+                    "min_child_samples": 60,
+                    "reg_alpha": 0.7,
+                    "reg_lambda": 4.2,
+                },
+                "use_lightgbm": True,
+                "blend_weights": {"xgb": 0.9, "lgbm": 0.1},
+            },
+        ]
+
+    def _profile_objective(self, cv_result: Dict[str, object]) -> float:
+        rows = list(cv_result.get("rows", []))
+        ensemble_auc = float(cv_result.get("ensemble_auc", 0.5))
+        if not rows:
+            return ensemble_auc
+        recent_folds = max(int(self.config.training_profile_recent_folds), 1)
+        recent_rows = rows[-recent_folds:]
+        recent_auc = float(np.mean([float(row.get("auc", ensemble_auc)) for row in recent_rows]))
+        recent_floor = float(min(float(row.get("auc", ensemble_auc)) for row in recent_rows))
+        xgb_auc = float(cv_result.get("xgb_auc", ensemble_auc))
+        recent_trade_win_rate = float(np.mean([float(row.get("trade_win_rate", 0.0)) for row in recent_rows]))
+        recent_trade_average_return = float(np.mean([float(row.get("trade_average_return", 0.0)) for row in recent_rows]))
+        overall_trade_win_rate = float(cv_result.get("trade_win_rate", 0.0))
+        trade_return_score = float(clamp((recent_trade_average_return + 0.02) / 0.05, 0.0, 1.0))
+        return (
+            0.35 * ensemble_auc
+            + 0.15 * recent_auc
+            + 0.10 * recent_floor
+            + 0.10 * xgb_auc
+            + 0.20 * recent_trade_win_rate
+            + 0.05 * overall_trade_win_rate
+            + 0.05 * trade_return_score
+        )
+
+    def _search_training_profile(self, dataset: pd.DataFrame) -> tuple[Dict[str, object], Dict[str, object]]:
+        best_profile = self._default_training_profile()
+        best_cv = self._walk_forward_cv(dataset, profile=best_profile)
+        best_score = self._profile_objective(best_cv)
+        LOGGER.info(
+            "Training profile %s objective %.4f (ensemble AUC %.4f)",
+            best_profile["name"],
+            best_score,
+            float(best_cv.get("ensemble_auc", 0.5)),
+        )
+        for profile in self._candidate_training_profiles()[1:]:
+            cv_result = self._walk_forward_cv(dataset, profile=profile)
+            objective = self._profile_objective(cv_result)
+            LOGGER.info(
+                "Training profile %s objective %.4f (ensemble AUC %.4f)",
+                profile["name"],
+                objective,
+                float(cv_result.get("ensemble_auc", 0.5)),
+            )
+            if objective > best_score:
+                best_profile = profile
+                best_cv = cv_result
+                best_score = objective
+        return best_profile, best_cv
 
     def _weekly_sample_indices(self, index: pd.Index) -> List[int]:
         sample_indices: List[int] = []
@@ -1237,11 +1678,43 @@ class XGBoostPredictor:
     def _blend_weights_from_aucs(self, xgb_auc: float, lightgbm_auc: float, *, lightgbm_available: bool) -> Dict[str, float]:
         if not lightgbm_available:
             return {"xgb": 1.0, "lgbm": 0.0}
+        auc_gap = float(abs(xgb_auc - lightgbm_auc))
+        if auc_gap >= 0.02:
+            if xgb_auc > lightgbm_auc:
+                return {"xgb": 0.9, "lgbm": 0.1}
+            return {"xgb": 0.1, "lgbm": 0.9}
+        if auc_gap >= 0.01:
+            if xgb_auc > lightgbm_auc:
+                return {"xgb": 0.8, "lgbm": 0.2}
+            return {"xgb": 0.2, "lgbm": 0.8}
         if lightgbm_auc > xgb_auc:
             return {"xgb": 0.4, "lgbm": 0.6}
         return {"xgb": 0.6, "lgbm": 0.4}
 
-    def _train_regime_models(self, dataset: pd.DataFrame, *, save_model: bool) -> None:
+    def _resolve_blend_weights(
+        self,
+        profile: Dict[str, object] | None,
+        xgb_auc: float,
+        lightgbm_auc: float,
+        *,
+        lightgbm_available: bool,
+    ) -> Dict[str, float]:
+        preferred = (profile or {}).get("blend_weights") if isinstance(profile, dict) else None
+        if isinstance(preferred, dict):
+            xgb_weight = float(preferred.get("xgb", 0.0))
+            lgbm_weight = float(preferred.get("lgbm", 0.0))
+            total = xgb_weight + lgbm_weight
+            if total > 0 and (lightgbm_available or lgbm_weight == 0.0):
+                return {"xgb": xgb_weight / total, "lgbm": lgbm_weight / total}
+        return self._blend_weights_from_aucs(xgb_auc, lightgbm_auc, lightgbm_available=lightgbm_available)
+
+    def _train_regime_models(
+        self,
+        dataset: pd.DataFrame,
+        *,
+        save_model: bool,
+        xgb_overrides: Dict[str, object] | None = None,
+    ) -> None:
         if not self.config.feature_flags.regime_specific_model or "regime" not in dataset:
             return
         self.regime_models = {}
@@ -1260,9 +1733,13 @@ class XGBoostPredictor:
             pos_count = int(train["target"].sum())
             neg_count = int(len(train) - pos_count)
             scale_pos_weight = float(neg_count / max(pos_count, 1))
-            model = self._build_model(scale_pos_weight=scale_pos_weight)
-            balanced_x, balanced_y = self._balance_training_data(train[feature_columns], train["target"])
-            fit_kwargs = self._fit_kwargs(model, balanced_y, scale_pos_weight)
+            model = self._build_model(scale_pos_weight=scale_pos_weight, overrides=xgb_overrides)
+            balanced_x, balanced_y, balanced_dates = self._balance_training_data(
+                train[feature_columns],
+                train["target"],
+                sample_dates=train["date"],
+            )
+            fit_kwargs = self._fit_kwargs(model, balanced_y, scale_pos_weight, sample_dates=balanced_dates)
             model.fit(balanced_x, balanced_y, **fit_kwargs)
             self.regime_models[regime] = model
             self.regime_feature_columns[regime] = feature_columns

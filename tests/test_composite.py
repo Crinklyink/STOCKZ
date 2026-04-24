@@ -20,7 +20,14 @@ from tests.helpers import make_info, make_ohlcv
 
 
 class CompositeScoreTests(unittest.TestCase):
-    def _build_candidate(self, *, pattern: PatternResult, pattern_history: PatternWinRateResult):
+    def _build_candidate(
+        self,
+        *,
+        pattern: PatternResult,
+        pattern_history: PatternWinRateResult,
+        options_metrics: dict | None = None,
+        sentiment_metrics: dict | None = None,
+    ):
         config = get_config()
         daily = make_ohlcv(periods=280, drift=0.002, last_boost=0.04)
         hourly = make_ohlcv(periods=200, freq="h", drift=0.0004, last_boost=0.02)
@@ -34,8 +41,8 @@ class CompositeScoreTests(unittest.TestCase):
             pattern=pattern,
             pattern_history=pattern_history,
             ensemble_output=EnsembleOutput(0.72, 0.0, 0.72, None, "trained", 0.0, 4.0, "high"),
-            options_metrics={"options_score": 0.65, "has_data": True},
-            sentiment_metrics={"sentiment_score": 0.62, "has_data": True},
+            options_metrics=options_metrics or {"options_score": 0.65, "has_data": True},
+            sentiment_metrics=sentiment_metrics or {"sentiment_score": 0.62, "has_data": True},
             rs_metrics={"rs_rating": 72.0, "weighted_excess_return": 0.08},
             macro_sector_score=0.65,
             news_metrics={"score": 0.62, "summary": "positive", "label": "bullish"},
@@ -95,6 +102,26 @@ class CompositeScoreTests(unittest.TestCase):
 
         self.assertEqual(candidate.pattern_score, 0.0)
         self.assertLess(candidate.confluence_count, 3)
+
+    def test_defaulted_optional_signals_reduce_score_and_confidence(self) -> None:
+        covered = self._build_candidate(
+            pattern=PatternResult("bull_flag", 8.4, "Strong flag"),
+            pattern_history=PatternWinRateResult("bull_flag", 0.68, 30, True),
+        )
+        defaulted = self._build_candidate(
+            pattern=PatternResult("bull_flag", 8.4, "Strong flag"),
+            pattern_history=PatternWinRateResult("bull_flag", 0.68, 30, True),
+            options_metrics={"options_score": None, "has_data": False, "defaulted": True},
+            sentiment_metrics={"sentiment_score": None, "has_data": False, "defaulted": True},
+        )
+
+        self.assertLess(defaulted.final_score, covered.final_score)
+        self.assertGreater(defaulted.score_uncertainty, covered.score_uncertainty)
+        self.assertIn(defaulted.confidence_label, {"medium", "low"})
+        self.assertTrue(
+            any("Optional signals defaulted to neutral" in note for note in defaulted.notes),
+            msg=defaulted.notes,
+        )
 
 
 if __name__ == "__main__":

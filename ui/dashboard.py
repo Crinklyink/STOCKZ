@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from ui.widgets import (
@@ -27,14 +28,18 @@ class DashboardView(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 24, 24, 24)
-        root.setSpacing(16)
+        root.setContentsMargins(28, 28, 28, 28)
+        root.setSpacing(14)
+
+        self.page_title = QLabel("Performance Snapshot")
+        self.page_title.setFont(apple_font("display", 22, QFont.Weight.Bold))
+        root.addWidget(self.page_title)
 
         self.cards = {
-            "week": StatCard("This Week", "--", "Waiting for data"),
-            "win_rate": StatCard("Target Hit Rate", "--", "Last 8 weeks"),
-            "avg_return": StatCard("Avg Return", "--", "Last 8 weeks"),
-            "vix": StatCard("VIX", "--", "Market regime"),
+            "week": StatCard("This Week", "--", "7-day performance"),
+            "win_rate": StatCard("Hit Rate", "--", "hit rate"),
+            "avg_return": StatCard("Avg Return", "--", "8 week return"),
+            "vix": StatCard("VIX", "--", "trend"),
         }
         card_row = QHBoxLayout()
         card_row.setSpacing(12)
@@ -106,18 +111,28 @@ class DashboardView(QWidget):
 
     def apply_theme(self) -> None:
         colors = theme_colors(self)
-        self.setStyleSheet(f"background: {css_color(colors['window'])};")
-        panel_style = (
-            f"background: {css_color(colors['base'])}; "
-            f"border: 1px solid {css_color(colors['border'])}; "
-            "border-radius: 12px;"
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet(f"{self.__class__.__name__} {{ background-color: {css_color(colors['window'])}; }}")
+        self.page_title.setStyleSheet(
+            f"color: {css_color(colors['text'])}; background: transparent; border: none;"
+        )
+        base_bg = css_color(colors["base"])
+        border_c = css_color(colors["border"])
+        # Scoped stylesheet — border only targets the QFrame itself, not children
+        scoped_panel = (
+            f"QFrame {{ background: {base_bg}; border: 1px solid {border_c}; border-radius: 8px; }}"
+            f" QLabel {{ background: transparent; border: none; }}"
+            f" QWidget {{ background: transparent; border: none; }}"
         )
         for panel in (self.banner, self.picks_panel, self.regime_panel, self.performance_panel):
-            panel.setStyleSheet(panel_style)
+            panel.setStyleSheet(scoped_panel)
             apply_card_shadow(panel, enabled=not is_dark_mode(panel))
-        self.banner_label.setStyleSheet(f"color: {css_color(colors['text'])};")
-        self.banner_meta.setStyleSheet(f"color: {css_color(colors['text_secondary'])};")
-
+        self.banner_label.setStyleSheet(
+            f"color: {css_color(colors['text'])}; background: transparent; border: none;"
+        )
+        self.banner_meta.setStyleSheet(
+            f"color: {css_color(colors['text_secondary'])}; background: transparent; border: none;"
+        )
     def changeEvent(self, event) -> None:  # type: ignore[override]
         super().changeEvent(event)
 

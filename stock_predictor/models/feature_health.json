@@ -1,0 +1,122 @@
+{
+  "updated_at": "2026-04-14T09:47:12.923443+00:00",
+  "records": {
+    "options": {
+      "feature": "options",
+      "hit_rate": 1.0,
+      "sample_count": 1,
+      "weeks": 1,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.25,
+      "disabled": false
+    },
+    "sentiment": {
+      "feature": "sentiment",
+      "hit_rate": 1.0,
+      "sample_count": 10,
+      "weeks": 2,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.25,
+      "disabled": false
+    },
+    "pattern": {
+      "feature": "pattern",
+      "hit_rate": 0.975,
+      "sample_count": 40,
+      "weeks": 1,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.25,
+      "disabled": false
+    },
+    "rsi": {
+      "feature": "rsi",
+      "hit_rate": 0.8604651162790697,
+      "sample_count": 86,
+      "weeks": 3,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.25,
+      "disabled": false
+    },
+    "adx": {
+      "feature": "adx",
+      "hit_rate": 0.7415730337078652,
+      "sample_count": 89,
+      "weeks": 4,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.25,
+      "disabled": false
+    },
+    "bollinger": {
+      "feature": "bollinger",
+      "hit_rate": 0.6818181818181818,
+      "sample_count": 22,
+      "weeks": 2,
+      "status": "DISABLED",
+      "weight_multiplier": 0.0,
+      "disabled": true
+    },
+    "momentum": {
+      "feature": "momentum",
+      "hit_rate": 0.6057692307692307,
+      "sample_count": 208,
+      "weeks": 4,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.0,
+      "disabled": false
+    },
+    "vwap": {
+      "feature": "vwap",
+      "hit_rate": 0.576530612244898,
+      "sample_count": 196,
+      "weeks": 4,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.0,
+      "disabled": false
+    },
+    "volume": {
+      "feature": "volume",
+      "hit_rate": 0.576271186440678,
+      "sample_count": 177,
+      "weeks": 4,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.0,
+      "disabled": false
+    },
+    "macd": {
+      "feature": "macd",
+      "hit_rate": 0.5664739884393064,
+      "sample_count": 173,
+      "weeks": 4,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.0,
+      "disabled": false
+    },
+    "price_vs_50ma": {
+      "feature": "price_vs_50ma",
+      "hit_rate": 0.5588235294117647,
+      "sample_count": 170,
+      "weeks": 4,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.0,
+      "disabled": false
+    },
+    "ml": {
+      "feature": "ml",
+      "hit_rate": 0.5317919075144508,
+      "sample_count": 173,
+      "weeks": 4,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.0,
+      "disabled": false
+    },
+    "rs": {
+      "feature": "rs",
+      "hit_rate": 0.5310344827586206,
+      "sample_count": 145,
+      "weeks": 4,
+      "status": "ACTIVE",
+      "weight_multiplier": 1.0,
+      "disabled": false
+    }
+  }
+}

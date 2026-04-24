@@ -716,6 +716,49 @@ class BacktestTracker:
             )
         return frame
 
+    def completed_payload_rows(self, *, paper: bool = True, weeks: int = 8) -> list[dict]:
+        prediction_table = "paper_predictions" if paper else "predictions"
+        evaluation_table = "paper_evaluations" if paper else "evaluations"
+        with self._connect() as conn:
+            frame = pd.read_sql_query(
+                f"""
+                SELECT p.run_id, p.created_at, p.ticker, p.entry_price, p.target_price, p.final_score, p.payload_json,
+                       e.latest_price, e.realized_return, e.hit_target,
+                       e.window_high_price, e.resolved_target_hit, e.resolution_method,
+                       rc.vix_bucket, rc.spy_trend, rc.sector_leaders
+                FROM {prediction_table} p
+                JOIN {evaluation_table} e ON p.run_id = e.run_id AND p.ticker = e.ticker
+                LEFT JOIN regime_contexts rc ON p.run_id = rc.run_id
+                WHERE e.realized_return IS NOT NULL
+                ORDER BY p.created_at ASC
+                """,
+                conn,
+            )
+        frame = _with_resolved_outcomes(frame)
+        if frame.empty:
+            return []
+        frame["created_ts"] = pd.to_datetime(frame["created_at"], utc=True, errors="coerce")
+        frame["week"] = _week_labels(frame["created_at"])
+        unique_weeks = frame["week"].dropna().drop_duplicates().tolist()[-weeks:]
+        frame = frame.loc[frame["week"].isin(unique_weeks)].copy()
+        rows: list[dict] = []
+        for row in frame.to_dict(orient="records"):
+            try:
+                payload = json.loads(row.get("payload_json") or "{}")
+            except Exception:
+                payload = {}
+            rows.append(
+                {
+                    **row,
+                    "payload": payload,
+                    "regime": payload.get("diagnostics", {}).get("ensemble", {}).get("regime")
+                    or payload.get("regime_label")
+                    or row.get("vix_bucket")
+                    or "neutral",
+                }
+            )
+        return rows
+
     def paper_trade_results_summary(self) -> Dict[str, float | str | int]:
         frame = _with_resolved_outcomes(self.paper_results_frame()).dropna(subset=["realized_return"]).copy()
         if frame.empty:

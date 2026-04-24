@@ -272,6 +272,7 @@ def build_candidate_score(
         "sentiment": bool(sentiment_metrics.get("defaulted")),
         "flow": bool(options_metrics.get("defaulted")),
     }
+    defaulted_signal_count = int(sum(defaulted_signals.values()))
     ml_score = normalize(ensemble_output.probability, 0.0, 1.0)
     if model_training_samples < config.thresholds.cold_start_min_samples:
         ml_score = round(technical_score * 0.85, 2)
@@ -326,6 +327,13 @@ def build_candidate_score(
         + weights["options"] * options_score
     )
     base_score = clamp(weighted_sum, 0.0, 100.0)
+    signal_coverage_penalty = 0.0
+    if defaulted_signals["sentiment"]:
+        signal_coverage_penalty += config.thresholds.defaulted_sentiment_penalty_points
+    if defaulted_signals["flow"]:
+        signal_coverage_penalty += config.thresholds.defaulted_flow_penalty_points
+    if defaulted_signal_count >= 2:
+        signal_coverage_penalty += config.thresholds.multiple_defaulted_signals_penalty_points
     optional_bonus = min(
         10.0,
         4.0 * clamp(supply_chain_signal.score, 0.0, 1.0)
@@ -348,6 +356,7 @@ def build_candidate_score(
         + sector_temperature_bonus
         + persistent_momentum_bonus
     )
+    final_score -= signal_coverage_penalty
     if risk_reward < 1.0:
         final_score -= 3.0
     elif risk_reward < 1.5:
@@ -362,9 +371,17 @@ def build_candidate_score(
     final_score = clamp(final_score, 0.0, 100.0)
     assert 0.0 <= final_score <= 100.0
 
-    uncertainty = ensemble_output.score_uncertainty + (1.0 - data_quality.score) * 4.0
+    uncertainty = (
+        ensemble_output.score_uncertainty
+        + (1.0 - data_quality.score) * 4.0
+        + defaulted_signal_count * config.thresholds.defaulted_signal_uncertainty_points
+    )
     uncertainty = clamp(uncertainty, 2.0, 15.0)
     confidence_label = ensemble_output.confidence_label
+    if defaulted_signal_count >= 2:
+        confidence_label = "medium" if confidence_label == "high" else "low"
+    elif defaulted_signal_count == 1 and confidence_label == "high":
+        confidence_label = "medium"
     if data_quality.score < 0.7:
         confidence_label = "low"
     if final_score < threshold_used:
@@ -391,6 +408,7 @@ def build_candidate_score(
         persistent_momentum_bonus=persistent_momentum_bonus,
         float_rotation_bonus=float_rotation_bonus,
         data_quality=data_quality,
+        defaulted_signals=defaulted_signals,
     )
     if model_training_samples < config.thresholds.cold_start_min_samples:
         notes.append("Model untrained; ML score is using technical fallback")
@@ -494,6 +512,7 @@ def build_candidate_score(
                 "pattern_component": round(pattern_component_score, 2),
                 "volume_momentum": round(volume_momentum_score, 2),
                 "base_score": round(base_score, 2),
+                "signal_coverage_penalty": round(signal_coverage_penalty, 2),
                 "optional_bonus": round(optional_bonus, 2),
                 "confluence_checks": confluence_checks,
                 "confluence_count": confluence_count,
@@ -635,6 +654,7 @@ def build_notes(
     persistent_momentum_bonus: float,
     float_rotation_bonus: float,
     data_quality: DataQualityResult,
+    defaulted_signals: Dict[str, bool],
 ) -> List[str]:
     notes: List[str] = []
     pattern_signal_active = _pattern_signal_active(config, pattern, pattern_history)
@@ -684,6 +704,9 @@ def build_notes(
         notes.append("Fast float rotation supports momentum follow-through")
     if data_quality.issues:
         notes.append("Data quality warnings: " + "; ".join(data_quality.issues[:2]))
+    defaulted = [name for name, active in defaulted_signals.items() if active]
+    if defaulted:
+        notes.append("Optional signals defaulted to neutral: " + ", ".join(defaulted))
     return notes
 
 

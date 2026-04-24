@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+import tempfile
+import json
 
 from app_window import AppDataService
 
@@ -9,6 +11,69 @@ from app_window import AppDataService
 class AppReportingTests(unittest.TestCase):
     def setUp(self) -> None:
         self.service = AppDataService(Path("/Users/crinklyink/Desktop/idk project"))
+
+    def test_model_metadata_merges_active_ensemble_details(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            adaptive_path = tmp / "adaptive.json"
+            xgb_path = tmp / "xgb.json"
+            lgbm_path = tmp / "lgbm.json"
+            adaptive_path.write_text(
+                json.dumps(
+                    {
+                        "trained": True,
+                        "trained_at": "2026-04-12T00:00:00+00:00",
+                        "training_samples": 6400,
+                        "ensemble_auc": 0.631,
+                        "selected_profile": "adaptive_regime_ensemble",
+                        "regime_summary": {"neutral": {"weeks": 6, "win_rate": 58.0, "average_return": 2.1}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            xgb_path.write_text(
+                json.dumps(
+                    {
+                        "trained": True,
+                        "trained_at": "2026-04-10T02:15:26.086424+00:00",
+                        "training_samples": 53683,
+                        "auc": 0.6247615384615385,
+                        "ensemble_auc": 0.6247615384615385,
+                        "xgb_auc": 0.6242461538461538,
+                        "selected_profile": "regularized_ensemble",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            lgbm_path.write_text(
+                json.dumps(
+                    {
+                        "auc": 0.616376923076923,
+                        "ensemble_weights": {"xgb": 0.6, "lgbm": 0.4},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            original_adaptive = self.service.config.adaptive_metadata_path
+            original_xgb = self.service.config.xgb_metadata_path
+            original_lgbm = self.service.config.lgbm_metadata_path
+            self.service.config.adaptive_metadata_path = adaptive_path
+            self.service.config.xgb_metadata_path = xgb_path
+            self.service.config.lgbm_metadata_path = lgbm_path
+            try:
+                meta = self.service._load_model_metadata({"training_report": {}})
+            finally:
+                self.service.config.adaptive_metadata_path = original_adaptive
+                self.service.config.xgb_metadata_path = original_xgb
+                self.service.config.lgbm_metadata_path = original_lgbm
+
+            self.assertEqual(meta["model_stack"], "XGBoost + LightGBM")
+            self.assertEqual(meta["selected_profile"], "adaptive_regime_ensemble")
+            self.assertEqual(meta["profile_label"], "adaptive regime ensemble")
+            self.assertAlmostEqual(float(meta["auc"]), 0.631)
+            self.assertAlmostEqual(float(meta["lightgbm_auc"]), 0.616376923076923)
+            self.assertEqual(meta["ensemble_weights"], {"xgb": 0.6, "lgbm": 0.4})
 
     def test_weekly_rows_use_target_hits_not_positive_returns(self) -> None:
         details = [

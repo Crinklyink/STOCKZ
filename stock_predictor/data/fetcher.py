@@ -278,6 +278,8 @@ class MarketDataFetcher:
         return histories
 
     def fetch_macro_history(self, ticker: str, fresh: bool = False, period: str = "6mo") -> pd.DataFrame:
+        if not ticker:
+            return pd.DataFrame()
         return self.download_history(
             ticker,
             interval="1d",

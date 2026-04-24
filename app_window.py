@@ -7,7 +7,6 @@ import os
 import sqlite3
 import smtplib
 import subprocess
-import threading
 from dataclasses import dataclass
 from datetime import datetime
 from email.message import EmailMessage
@@ -39,10 +38,25 @@ from ui.dashboard import DashboardView
 from ui.history_view import HistoryView, PerformanceView
 from ui.picks_view import PicksView
 from ui.settings_view import SettingsView
+from ui.training_view import TrainingView
 from ui.widgets import COLORS, ScanProgressDialog, ScanWorker, SidebarButton, apple_font, apply_card_shadow, css_color, is_dark_mode, style_primary_button, theme_colors
 
 
 APP_VERSION = "3.0"
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_int(value: Any, default: int) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
 
 
 @dataclass(slots=True)
@@ -75,7 +89,7 @@ class AppDataService:
         payload = self._load_json(self.config.latest_scan_path)
         single_analysis = self._load_json(self.config.latest_single_analysis_path)
         single_analysis_history = self._load_analysis_history()
-        model_metadata = self._load_json(self.config.xgb_metadata_path)
+        model_metadata = self._load_model_metadata(payload)
         history_details = self._load_history_details()
         weekly_rows = self._build_weekly_rows(history_details)
         history_rows = self._build_history_rows(history_details)
@@ -157,10 +171,10 @@ class AppDataService:
             "wednesday_time": env_map.get("WEDNESDAY_CHECK_TIME", "18:00"),
             "auto_open_app": env_map.get("AUTO_OPEN_APP_AFTER_SCAN", "1") != "0",
             "retrain_weekly": env_map.get("RETRAIN_MODEL_WEEKLY", "1") != "0",
-            "vix_cutoff": float(env_map.get("APP_VIX_CUTOFF", "30")),
-            "min_score_threshold": float(env_map.get("APP_MIN_SCORE_THRESHOLD", "54")),
-            "min_rr_ratio": float(env_map.get("APP_MIN_RR_RATIO", "1.0")),
-            "max_picks": int(float(env_map.get("APP_MAX_PICKS", "5"))),
+            "vix_cutoff": _coerce_float(env_map.get("APP_VIX_CUTOFF"), 30.0),
+            "min_score_threshold": _coerce_float(env_map.get("APP_MIN_SCORE_THRESHOLD"), 54.0),
+            "min_rr_ratio": _coerce_float(env_map.get("APP_MIN_RR_RATIO"), 1.0),
+            "max_picks": _coerce_int(env_map.get("APP_MAX_PICKS"), 5),
             "universe": env_map.get("DEFAULT_UNIVERSE", "full"),
         }
 
@@ -183,6 +197,50 @@ class AppDataService:
             return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             return {}
+
+    def _load_model_metadata(self, payload: dict[str, Any]) -> dict[str, Any]:
+        adaptive_meta = self._load_json(self.config.adaptive_metadata_path)
+        xgb_meta = self._load_json(self.config.xgb_metadata_path)
+        lgbm_meta = self._load_json(self.config.lgbm_metadata_path)
+        scan_report = payload.get("training_report", {}) if isinstance(payload, dict) else {}
+
+        merged: dict[str, Any] = {}
+        if isinstance(adaptive_meta, dict):
+            merged.update(adaptive_meta)
+        if isinstance(xgb_meta, dict):
+            for key, value in xgb_meta.items():
+                if key not in merged or merged.get(key) in (None, "", 0, 0.0, False):
+                    merged[key] = value
+
+        if isinstance(scan_report, dict):
+            for key, value in scan_report.items():
+                if key not in merged or merged.get(key) in (None, "", 0, 0.0, False):
+                    merged[key] = value
+
+        if isinstance(lgbm_meta, dict):
+            if "lightgbm_auc" not in merged and "auc" in lgbm_meta:
+                merged["lightgbm_auc"] = lgbm_meta.get("auc")
+            if "ensemble_weights" not in merged and "ensemble_weights" in lgbm_meta:
+                merged["ensemble_weights"] = lgbm_meta.get("ensemble_weights")
+            if "feature_columns" not in merged and "feature_columns" in lgbm_meta:
+                merged["feature_columns"] = lgbm_meta.get("feature_columns")
+
+        ensemble_auc = merged.get("ensemble_auc")
+        if ensemble_auc is not None:
+            merged["auc"] = ensemble_auc
+
+        if merged.get("lightgbm_auc") is not None:
+            merged["model_stack"] = "XGBoost + LightGBM"
+        else:
+            merged["model_stack"] = "Adaptive Regime Ensemble"
+
+        profile = str(merged.get("selected_profile") or "baseline")
+        merged["profile_label"] = profile.replace("_", " ")
+        merged["active_model_label"] = f"{merged['model_stack']} · {profile}"
+        feature_health_payload = self._load_json(self.config.feature_health_path)
+        if isinstance(feature_health_payload, dict):
+            merged["feature_health"] = feature_health_payload.get("records", {})
+        return merged
 
     def _load_analysis_history(self) -> list[dict[str, Any]]:
         path = self.config.single_analysis_history_path
@@ -489,24 +547,26 @@ class StockPredictorWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self.sidebar = QFrame()
-        self.sidebar.setFixedWidth(220)
+        self.sidebar.setFixedWidth(250)
+        self.sidebar.setObjectName("appSidebar")
         side_layout = QVBoxLayout(self.sidebar)
-        side_layout.setContentsMargins(18, 20, 18, 20)
+        side_layout.setContentsMargins(20, 32, 20, 32)
         side_layout.setSpacing(12)
 
-        self.logo = QLabel("Stock Predictor")
-        self.logo.setFont(apple_font("display", 20, QFont.Weight.DemiBold))
+        self.logo = QLabel("STOCK PREDICTOR")
+        self.logo.setFont(apple_font("display", 16, QFont.Weight.Bold))
         side_layout.addWidget(self.logo)
         side_layout.addSpacing(10)
 
         self.nav_buttons: dict[str, SidebarButton] = {}
         nav_items = [
-            ("dashboard", "⊞  Dashboard"),
-            ("picks", "◎  This Week's Picks"),
-            ("analyze", "◌  Analyze Stock"),
-            ("performance", "↗  Performance"),
-            ("history", "☰  History"),
-            ("settings", "⚙  Settings"),
+            ("dashboard", "Dashboard"),
+            ("picks", "This Week's Picks"),
+            ("analyze", "Analyze Stock"),
+            ("training", "Training"),
+            ("performance", "Performance"),
+            ("history", "History"),
+            ("settings", "Settings"),
         ]
         for key, label in nav_items:
             button = SidebarButton(label)
@@ -517,8 +577,10 @@ class StockPredictorWindow(QMainWindow):
 
         self.last_scan_label = QLabel("Last scan\n--")
         self.auc_label = QLabel("AUC --")
-        self.last_scan_label.setFont(apple_font("text", 12, QFont.Weight.Normal))
-        self.auc_label.setFont(apple_font("text", 12, QFont.Weight.Normal))
+        self.last_scan_label.setFont(apple_font("text", 13, QFont.Weight.Normal))
+        self.auc_label.setFont(apple_font("text", 13, QFont.Weight.Normal))
+        self.last_scan_label.setWordWrap(True)
+        self.auc_label.setWordWrap(True)
         self.run_button = QPushButton("Run Scan Now")
         style_primary_button(self.run_button)
         self.run_button.clicked.connect(self.run_scan_now)
@@ -532,6 +594,7 @@ class StockPredictorWindow(QMainWindow):
         self.dashboard_view = DashboardView()
         self.picks_view = PicksView()
         self.analyze_view = AnalyzeView(self.project_root)
+        self.training_view = TrainingView(self.project_root)
         self.performance_view = PerformanceView()
         self.history_view = HistoryView()
         self.settings_view = SettingsView()
@@ -540,11 +603,15 @@ class StockPredictorWindow(QMainWindow):
         self.settings_view.retrain_requested.connect(self.retrain_model)
         self.settings_view.clear_cache_requested.connect(self.clear_cache)
         self.settings_view.view_logs_requested.connect(self.view_logs)
+        self.training_view.logs_requested.connect(self.view_logs)
+        self.training_view.job_completed.connect(self.refresh_views)
+        self.training_view.auto_training_changed.connect(self.set_auto_training)
 
         self.view_order = {
             "dashboard": self.dashboard_view,
             "picks": self.picks_view,
             "analyze": self.analyze_view,
+            "training": self.training_view,
             "performance": self.performance_view,
             "history": self.history_view,
             "settings": self.settings_view,
@@ -556,8 +623,15 @@ class StockPredictorWindow(QMainWindow):
 
     def apply_theme(self) -> None:
         colors = theme_colors(self)
-        self.setStyleSheet(f"background: {css_color(colors['window'])}; color: {css_color(colors['text'])};")
-        self.sidebar.setStyleSheet(f"background: {css_color(colors['window'])}; border: 0;")
+        self.setStyleSheet(f"QMainWindow {{ background: {css_color(colors['window'])}; color: {css_color(colors['text'])}; }}")
+        
+        # Clean sidebar — separation via background contrast only
+        self.sidebar.setStyleSheet(
+            f"QFrame#appSidebar {{ "
+            f"background: {css_color(colors['sidebar'])}; "
+            f"border: none; "
+            f"}}"
+        )
         self.logo.setStyleSheet(f"color: {css_color(colors['text'])};")
         subtle = css_color(colors["text_tertiary"])
         self.last_scan_label.setStyleSheet(f"color: {subtle};")
@@ -601,12 +675,18 @@ class StockPredictorWindow(QMainWindow):
         self.dashboard_view.update_data(state_dict)
         self.picks_view.update_data(state_dict)
         self.analyze_view.update_data(state_dict)
+        self.training_view.update_data(state_dict)
         self.performance_view.update_data(state_dict)
         self.history_view.update_data(state_dict)
         self.settings_view.update_data(state_dict)
 
         self.last_scan_label.setText(f"Last scan: {self.state.last_scan_text}")
-        self.auc_label.setText(f"Model AUC: {float(self.state.model_metadata.get('auc', 0.0)):.3f}")
+        auc = float(self.state.model_metadata.get("auc", 0.0) or 0.0)
+        profile = str(self.state.model_metadata.get("selected_profile", "")).strip()
+        auc_text = f"Model AUC: {auc:.3f}"
+        if profile:
+            auc_text = f"{auc_text} · {profile}"
+        self.auc_label.setText(auc_text)
         self.setWindowTitle(f"Stock Predictor v{APP_VERSION} — {self.state.top_pick_text}")
 
     def run_scan_now(self) -> None:
@@ -635,13 +715,17 @@ class StockPredictorWindow(QMainWindow):
             f"{selected_count} picks found this week" if selected_count else "⛔ No picks (VIX too high)",
         )
         self._set_dock_badge(selected_count)
-        self.scan_worker = None
+        if self.scan_worker is not None:
+            self.scan_worker.deleteLater()
+            self.scan_worker = None
 
     def _handle_scan_failed(self, message: str) -> None:
         if self.scan_dialog:
             self.scan_dialog.set_failed(message)
         QMessageBox.warning(self, "Scan failed", message)
-        self.scan_worker = None
+        if self.scan_worker is not None:
+            self.scan_worker.deleteLater()
+            self.scan_worker = None
 
     def save_settings(self, values: dict[str, Any]) -> None:
         try:
@@ -660,13 +744,18 @@ class StockPredictorWindow(QMainWindow):
             QMessageBox.warning(self, "Email failed", str(exc))
 
     def retrain_model(self) -> None:
-        QMessageBox.information(self, "Retraining started", "Model retraining is running in the background.")
+        self._set_view("training")
+        QMessageBox.information(self, "Training moved", "Use the Training tab to watch model training progress live.")
 
-        def _work() -> None:
-            subprocess.run([os.sys.executable, "main.py", "--train", "--universe", "full"], cwd=self.project_root, check=False)
-            self.refresh_requested.emit()
-
-        threading.Thread(target=_work, daemon=True).start()
+    def set_auto_training(self, enabled: bool) -> None:
+        values = dict(self.state.settings)
+        values["retrain_weekly"] = enabled
+        try:
+            self.data_service.save_settings(values)
+            subprocess.run([os.sys.executable, "setup_schedule.py"], cwd=self.project_root, check=False, capture_output=True)
+            self.refresh_views()
+        except Exception as exc:
+            QMessageBox.warning(self, "Auto-trainer update failed", str(exc))
 
     def clear_cache(self) -> None:
         cache_root = self.project_root / "stock_predictor" / "artifacts"

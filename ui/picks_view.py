@@ -60,9 +60,12 @@ class PicksView(QWidget):
 
     def apply_theme(self) -> None:
         colors = theme_colors(self)
-        self.setStyleSheet(f"background: {css_color(colors['window'])};")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet(f"{self.__class__.__name__} {{ background-color: {css_color(colors['window'])}; }}")
         self.header_card.setStyleSheet(
-            f"background: {css_color(colors['base'])}; border: 1px solid {css_color(colors['border'])}; border-radius: 12px;"
+            f"background: {css_color(colors['base'])}; "
+            f"border: 1px solid rgba(255, 255, 255, 0.07); "
+            "border-radius: 10px;"
         )
         apply_card_shadow(self.header_card, enabled=not is_dark_mode(self.header_card))
 

@@ -31,20 +31,23 @@ from PySide6.QtWidgets import (
 
 
 COLORS = {
-    "green": "#34C759",
-    "red": "#FF3B30",
-    "orange": "#FF9500",
-    "blue": "#007AFF",
-    "indigo": "#5856D6",
-    "teal": "#5AC8FA",
-    "success": "#34C759",
-    "danger": "#FF3B30",
-    "warning": "#FF9500",
+    "green": "#34D399",    # Soft mint
+    "red": "#F87171",      # Coral red
+    "orange": "#FBBF24",   # Warm gold
+    "blue": "#007AFF",     # macOS blue
+    "indigo": "#818CF8",   # Lavender
+    "teal": "#2DD4BF",     # Vivid teal
+    "success": "#34D399",
+    "danger": "#F87171",
+    "warning": "#FBBF24",
     "accent": "#007AFF",
-    "accent_soft": "#5AC8FA",
-    "good": "#34C759",
-    "bad": "#FF3B30",
+    "accent_soft": "#3B9BFF",
+    "good": "#34D399",
+    "bad": "#F87171",
 }
+
+PANEL_RADIUS = 8
+CONTROL_RADIUS = 8
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 TQDM_PROGRESS_RE = re.compile(
@@ -64,14 +67,8 @@ ANALYSIS_NOISE_PATTERNS = (
 )
 
 
-def apply_shadow(widget: QWidget, color: str = COLORS["accent"], blur: int = 30, alpha: int = 60) -> None:
-    shadow = QGraphicsDropShadowEffect(widget)
-    shadow.setBlurRadius(blur)
-    shadow.setOffset(0, 8)
-    qcolor = QColor(color)
-    qcolor.setAlpha(alpha)
-    shadow.setColor(qcolor)
-    widget.setGraphicsEffect(shadow)
+def apply_shadow(widget: QWidget, color: str = COLORS["accent"], blur: int = 40, alpha: int = 70) -> None:
+    return
 
 
 def format_money(value: float) -> str:
@@ -145,27 +142,39 @@ def apply_letter_spacing(font: QFont, spacing: float = 0.8) -> QFont:
 def theme_colors(widget: QWidget | None = None) -> dict[str, QColor]:
     app = QApplication.instance()
     palette = widget.palette() if widget is not None else (app.palette() if app is not None else QPalette())
-    window = palette.color(QPalette.ColorRole.Window)
-    base = palette.color(QPalette.ColorRole.Base)
-    alt_base = palette.color(QPalette.ColorRole.AlternateBase)
-    text = palette.color(QPalette.ColorRole.WindowText)
-    dark = window.lightness() < 128
+    native_window = palette.color(QPalette.ColorRole.Window)
+    dark = native_window.lightness() < 128
+
+    if dark:
+        sidebar = QColor("#1C1C1E")
+        window = QColor("#101114")
+        base = QColor("#24262B")
+        alt_base = QColor("#2C2F36")
+        text = QColor("#F5F7FA")
+    else:
+        sidebar = QColor("#EEF2F7")
+        window = QColor("#F7F9FC")
+        base = QColor("#FFFFFF")
+        alt_base = QColor("#F1F5FA")
+        text = QColor("#172033")
+
     return {
         "is_dark": QColor(0, 0, 0, 255 if dark else 0),
+        "sidebar": sidebar,
         "window": window,
         "base": base,
         "alt_base": alt_base,
         "text": text,
-        "text_secondary": with_alpha(text, 0.6),
-        "text_tertiary": with_alpha(text, 0.4),
-        "border": QColor(255, 255, 255, 20) if dark else QColor(0, 0, 0, 15),
-        "separator": QColor(255, 255, 255, 20) if dark else QColor(0, 0, 0, 20),
-        "hover": with_alpha(text, 0.06 if dark else 0.04),
-        "selection": with_alpha(COLORS["blue"], 0.15),
-        "button_hover": with_alpha(COLORS["blue"], 0.10),
-        "badge_neutral": with_alpha(text, 0.08 if dark else 0.05),
-        "sheet": with_alpha(base, 0.96),
-        "shadow": QColor(0, 0, 0, 20),
+        "text_secondary": with_alpha(text, 0.55),
+        "text_tertiary": with_alpha(text, 0.35),
+        "border": QColor(255, 255, 255, 22) if dark else QColor(21, 34, 58, 20),
+        "separator": QColor(255, 255, 255, 10) if dark else QColor(21, 34, 58, 16),
+        "hover": with_alpha(QColor(COLORS["blue"]), 0.11 if dark else 0.08),
+        "selection": with_alpha(QColor(COLORS["blue"]), 0.16),
+        "button_hover": with_alpha(QColor(COLORS["blue"]), 0.10),
+        "badge_neutral": with_alpha(text, 0.08 if dark else 0.06),
+        "sheet": with_alpha(base, 0.98),
+        "shadow": QColor(0, 0, 0, 40 if dark else 15),
     }
 
 
@@ -174,14 +183,7 @@ def is_dark_mode(widget: QWidget | None = None) -> bool:
 
 
 def apply_card_shadow(widget: QWidget, *, enabled: bool) -> None:
-    if not enabled:
-        widget.setGraphicsEffect(None)
-        return
-    shadow = QGraphicsDropShadowEffect(widget)
-    shadow.setBlurRadius(20)
-    shadow.setOffset(0, 2)
-    shadow.setColor(QColor(0, 0, 0, 20))
-    widget.setGraphicsEffect(shadow)
+    return
 
 
 def secondary_text_css(widget: QWidget, opacity: float = 0.6) -> str:
@@ -190,38 +192,39 @@ def secondary_text_css(widget: QWidget, opacity: float = 0.6) -> str:
 
 def style_secondary_button(button: QPushButton) -> None:
     colors = theme_colors(button)
-    button.setFont(apple_font("text", 14, QFont.Weight.DemiBold))
+    button.setFont(apple_font("text", 13, QFont.Weight.DemiBold))
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     button.setStyleSheet(
         f"""
         QPushButton {{
             background: transparent;
-            color: {COLORS["blue"]};
-            border: 1px solid {css_color(colors["border"])};
-            border-radius: 10px;
-            padding: 8px 14px;
+            color: {css_color(colors["text"])};
+            border: 1.5px solid {css_color(colors["border"])};
+            border-radius: {CONTROL_RADIUS}px;
+            padding: 10px 18px;
         }}
         QPushButton:hover {{
-            background: {css_color(colors["button_hover"])};
+            background: {css_color(colors["hover"])};
+            border-color: {css_color(colors["text_tertiary"])};
         }}
         """
     )
 
 
 def style_primary_button(button: QPushButton) -> None:
-    button.setFont(apple_font("text", 15, QFont.Weight.DemiBold))
+    button.setFont(apple_font("text", 14, QFont.Weight.Bold))
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     button.setStyleSheet(
         f"""
         QPushButton {{
-            background: {COLORS["blue"]};
+            background: {COLORS["accent"]};
             color: white;
             border: 0;
-            border-radius: 10px;
-            padding: 8px 16px;
+            border-radius: {CONTROL_RADIUS}px;
+            padding: 12px 20px;
         }}
         QPushButton:hover {{
-            background: {css_color(COLORS["blue"], 0.88)};
+            background: {COLORS["accent_soft"]};
         }}
         """
     )
@@ -244,19 +247,22 @@ class SidebarButton(QPushButton):
             f"""
             QPushButton {{
                 border: 0;
-                border-radius: 10px;
+                border-radius: {CONTROL_RADIUS}px;
                 color: {css_color(colors["text_secondary"])};
                 background: transparent;
                 text-align: left;
-                padding: 0 12px;
+                padding: 10px 16px;
+                font-size: 14px;
+                font-weight: 500;
             }}
             QPushButton:hover {{
                 color: {css_color(colors["text"])};
                 background: {css_color(colors["hover"])};
             }}
             QPushButton:checked {{
-                color: {COLORS["blue"]};
-                background: {css_color(colors["selection"])};
+                color: {COLORS["green"]};
+                background: {css_color(with_alpha(QColor(COLORS["green"]), 0.15))};
+                font-weight: 700;
             }}
             """
         )
@@ -275,21 +281,21 @@ class StatCard(QFrame):
         self._value = QLabel(value)
         self._subtitle = QLabel(subtitle)
 
-        self._title.setFont(apply_letter_spacing(apple_font("text", 11, QFont.Weight.DemiBold), 0.5))
-        self._value.setFont(apple_font("rounded", 34, QFont.Weight.Light))
+        self._title.setFont(apple_font("text", 11, QFont.Weight.DemiBold))
+        self._value.setFont(apple_font("rounded", 28, QFont.Weight.Bold))
         self._subtitle.setFont(apple_font("text", 12, QFont.Weight.Normal))
         self._subtitle.setWordWrap(True)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(8)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(4)
         layout.addWidget(self._title)
         layout.addWidget(self._value)
         layout.addWidget(self._subtitle)
         layout.addStretch(1)
         self.setObjectName("statCard")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumHeight(124)
+        self.setMinimumHeight(110)
         self.set_tone(tone)
 
     def set_data(self, title: str, value: str, subtitle: str, tone: str = "neutral") -> None:
@@ -305,21 +311,26 @@ class StatCard(QFrame):
             "good": COLORS["green"],
             "warning": COLORS["orange"],
             "bad": COLORS["red"],
-            "neutral": css_color(colors["text"]),
-        }.get(tone, css_color(colors["text"]))
-        self._title.setStyleSheet(f"color: {css_color(colors['text_secondary'])};")
-        self._value.setStyleSheet(f"color: {accent};")
-        self._subtitle.setStyleSheet(f"color: {css_color(colors['text_secondary'])};")
+            "neutral": css_color(colors["text_secondary"]),
+        }.get(tone, css_color(colors["text_secondary"]))
+        self._title.setStyleSheet(
+            f"color: {css_color(colors['text_secondary'])}; letter-spacing: 1px; background: transparent;"
+        )
+        self._value.setStyleSheet(f"color: {css_color(colors['text'])}; background: transparent;")
+        self._subtitle.setStyleSheet(f"color: {accent}; font-weight: 500; background: transparent;")
         self.setStyleSheet(
             f"""
             QFrame#statCard {{
                 background: {css_color(colors["base"])};
                 border: 1px solid {css_color(colors["border"])};
-                border-radius: 12px;
+                border-radius: {PANEL_RADIUS}px;
+            }}
+            QFrame#statCard QLabel {{
+                background: transparent;
+                border: none;
             }}
             """
         )
-        apply_card_shadow(self, enabled=not is_dark_mode(self))
 
     def changeEvent(self, event) -> None:  # type: ignore[override]
         super().changeEvent(event)
@@ -418,8 +429,8 @@ class SectionLabel(QLabel):
     """Uppercase Apple-style section label."""
 
     def __init__(self, text: str, parent: QWidget | None = None) -> None:
-        super().__init__(text.upper(), parent)
-        self.setFont(apply_letter_spacing(apple_font("text", 11, QFont.Weight.DemiBold), 0.8))
+        super().__init__(text.title(), parent)
+        self.setFont(apple_font("text", 14, QFont.Weight.Medium))
         self.apply_theme()
 
     def apply_theme(self) -> None:
@@ -460,15 +471,16 @@ class ScoreBadge(QLabel):
         }
         tone = QColor(tone_color_map[self._tone])
         bg = QColor(tone)
-        bg.setAlpha(28)
+        bg.setAlpha(45)
         self.setStyleSheet(
             f"""
             QLabel {{
-                min-height: 24px;
-                padding: 0 8px;
-                border-radius: 6px;
+                min-height: 26px;
+                padding: 0 12px;
+                border-radius: {CONTROL_RADIUS}px;
                 color: {tone.name()};
                 background: {bg.name(QColor.NameFormat.HexArgb)};
+                font-weight: bold;
             }}
             """
         )
@@ -540,13 +552,13 @@ class InfoPill(QLabel):
         }
         tone = tone_map.get(self._tone, QColor(colors["text"]))
         background = QColor(tone)
-        background.setAlpha(26)
+        background.setAlpha(38)
         self.setStyleSheet(
             f"""
             QLabel {{
                 min-height: 26px;
-                padding: 0 10px;
-                border-radius: 6px;
+                padding: 0 12px;
+                border-radius: {CONTROL_RADIUS}px;
                 color: {tone.name()};
                 background: {background.name(QColor.NameFormat.HexArgb)};
             }}
@@ -679,10 +691,10 @@ class WatchlistRow(QFrame):
         try:
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             if self._hover_value > 0:
-                fill = with_alpha(COLORS["blue"], 0.05 * self._hover_value)
+                fill = with_alpha(COLORS["accent"], 0.08 * self._hover_value)
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.setBrush(fill)
-                painter.drawRoundedRect(self.rect().adjusted(0, 1, 0, -1), 8, 8)
+                painter.drawRoundedRect(self.rect().adjusted(0, 1, 0, -1), 10, 10)
             painter.setPen(QPen(colors["separator"], 1))
             painter.drawLine(self.rect().bottomLeft(), self.rect().bottomRight())
         finally:
@@ -740,6 +752,7 @@ class PickCard(QFrame):
         self.company_label = QLabel("Company")
         self.tier_badge = InfoPill("Tier 1", "blue")
         self.sector_badge = InfoPill("Sector", "warning")
+        self.score_badge = InfoPill("Score", "green")
         self.price_label = QLabel("$0.00")
         self.target_label = QLabel("$0.00  +0.0%")
         self.range_bar = TargetRangeBar()
@@ -779,6 +792,7 @@ class PickCard(QFrame):
         left.addWidget(self.company_label)
         header.addLayout(left)
         header.addStretch(1)
+        header.addWidget(self.score_badge)
         header.addWidget(self.tier_badge)
         header.addWidget(self.sector_badge)
         layout.addLayout(header)
@@ -823,15 +837,17 @@ class PickCard(QFrame):
             f"""
             QFrame#pickCard {{
                 background: {css_color(colors["base"])};
-                border: 1px solid {css_color(colors["border"])};
-                border-radius: 12px;
+                border: none;
+                border-radius: {PANEL_RADIUS}px;
             }}
             QFrame#pickCard:hover {{
-                background: {css_color(with_alpha(colors["base"], 0.98))};
+                background: {css_color(colors["hover"])};
+                border-radius: {PANEL_RADIUS}px;
+                border: 0;
             }}
             """
         )
-        apply_card_shadow(self, enabled=not is_dark_mode(self))
+        apply_card_shadow(self, enabled=True)
         self.ticker_label.setStyleSheet(f"color: {css_color(colors['text'])};")
         self.company_label.setStyleSheet(f"color: {css_color(colors['text_secondary'])};")
         self.price_label.setStyleSheet(f"color: {css_color(colors['text'])};")
@@ -844,33 +860,53 @@ class PickCard(QFrame):
         super().changeEvent(event)
 
     def set_candidate(self, candidate: dict) -> None:
-        current = float(candidate.get("current_price", 0.0))
-        target = float(candidate.get("targets", {}).get("tp2", current))
-        stop = float(candidate.get("stop_loss", current))
+        def _safe_float(val, default: float = 0.0) -> float:
+            try:
+                return float(val) if val is not None else default
+            except (ValueError, TypeError):
+                return default
+
+        current = _safe_float(candidate.get("current_price"))
+        targets = candidate.get("targets") or {}
+        target = _safe_float(targets.get("tp2"), current)
+        stop = _safe_float(candidate.get("stop_loss"), current)
         upside = ((target / current) - 1.0) * 100.0 if current else 0.0
         progress_value = ((current - stop) / max(target - stop, 0.01)) if current and target > stop else 0.5
-        final_score = float(candidate.get("final_score", 0.0))
-        tier = str(candidate.get("tier_label", "Tier"))
+        final_score = _safe_float(candidate.get("final_score"))
+        tier = str(candidate.get("tier_label") or "Tier")
         self.ticker_label.setText(str(candidate.get("ticker", "TICK")))
         self.company_label.setText(str(candidate.get("company_name", "Company")))
+        
+        if final_score >= 80:
+            score_color = "good"
+        elif final_score >= 60:
+            score_color = "blue"
+        elif final_score >= 40:
+            score_color = "warning"
+        else:
+            score_color = "bad"
+        self.score_badge.set_pill(f"Score {final_score:.1f}", score_color)
+        
         self.tier_badge.set_pill(tier, "blue")
-        self.sector_badge.set_pill(
-            f"{candidate.get('sector', 'Unknown')} {candidate.get('sector_temperature_tag', '')}".strip(),
-            "warning",
-        )
+        sector_str = str(candidate.get('sector') or 'Unknown')
+        temp_str = str(candidate.get('sector_temperature_tag') or '')
+        self.sector_badge.set_pill(f"{sector_str} {temp_str}".strip(), "warning")
         self.price_label.setText(format_money(current))
         self.target_label.setText(f"{format_money(target)}  {format_percent(upside)}")
         self.range_bar.set_progress(progress_value)
         self.current_label.setText(f"Current {format_money(current)}")
         self.stop_label.setText(f"Stop {format_money(stop)}")
-        self.rr_label.setText(f"R:R {float(candidate.get('risk_reward', 0.0)):.1f}")
-        self.size_label.setText(f"Size {float(candidate.get('kelly_size_pct', 0.0)):.1f}%")
-        self.signal_meters["Tech"].set_value(float(candidate.get("technical_score", 0.0)))
-        self.signal_meters["RS"].set_value(float(candidate.get("rs_score", 0.0)))
-        self.signal_meters["Vol"].set_value(float(candidate.get("volume_momentum_score", 0.0)))
-        self.signal_meters["ML"].set_value(float(candidate.get("ml_score", 0.0)), color=COLORS["indigo"])
-        self.signal_meters["Pat"].set_value(float(candidate.get("pattern_score", 0.0)), color=COLORS["teal"])
-        explanation = str(candidate.get("ai_explanation", "No explanation available."))
+        self.rr_label.setText(f"R:R {_safe_float(candidate.get('risk_reward')):.1f}")
+        self.size_label.setText(f"Size {_safe_float(candidate.get('kelly_size_pct')):.1f}%")
+        self.signal_meters["Tech"].set_value(_safe_float(candidate.get("technical_score")))
+        self.signal_meters["RS"].set_value(_safe_float(candidate.get("rs_score")))
+        self.signal_meters["Vol"].set_value(_safe_float(candidate.get("volume_momentum_score")))
+        self.signal_meters["ML"].set_value(_safe_float(candidate.get("ml_score")), color=COLORS["indigo"])
+        self.signal_meters["Pat"].set_value(_safe_float(candidate.get("pattern_score")), color=COLORS["teal"])
+        explanation = str(candidate.get("ai_explanation") or "No explanation available.")
+        notes = candidate.get("notes", [])
+        if notes:
+            explanation += "\n\nInsights:\n• " + "\n• ".join(notes)
         self.explanation_label.setText(explanation)
         self.apply_theme()
 
@@ -1227,7 +1263,8 @@ class ScanProgressDialog(QDialog):
         self.setModal(True)
         self.setMinimumWidth(460)
         colors = theme_colors(self)
-        self.setStyleSheet(f"background: {css_color(with_alpha(colors['window'], 0.72))};")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet(f"{self.__class__.__name__} {{ background-color: {css_color(colors['window'])}; }}")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(0)
@@ -1238,8 +1275,8 @@ class ScanProgressDialog(QDialog):
             f"""
             QFrame#scanSheet {{
                 background: {css_color(colors["sheet"])};
-                border: 1px solid {css_color(colors["border"])};
-                border-radius: 16px;
+                border: 0;
+                border-radius: {PANEL_RADIUS}px;
             }}
             """
         )
@@ -1258,7 +1295,7 @@ class ScanProgressDialog(QDialog):
 
         self.stage1_label = QLabel("Stage 1: Filtering tickers")
         self.stage1_label.setFont(apple_font("text", 13, QFont.Weight.Medium))
-        self.stage1_label.setStyleSheet(f"color: {{css_color(colors['text'])}};")
+        self.stage1_label.setStyleSheet(f"color: {css_color(colors['text'])};")
         self.stage1_bar = QProgressBar()
         self.stage1_bar.setRange(0, 100)
         self.stage2_label = QLabel("Stage 2: Scoring survivors")

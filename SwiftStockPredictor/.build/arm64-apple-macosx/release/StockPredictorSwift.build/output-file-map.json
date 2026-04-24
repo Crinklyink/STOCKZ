@@ -1,0 +1,61 @@
+{
+  "": {
+    "dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorSwift.d",
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorSwift.o",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/primary.swiftdeps"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.dia"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/ContentView.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/ContentView.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/ContentView.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/ContentView.dia"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/DashboardScreen.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/DashboardScreen.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/DashboardScreen~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/DashboardScreen.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/DashboardScreen.dia"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Design.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Design.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Design~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Design.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Design.dia"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/HistorySettingsScreens.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/HistorySettingsScreens.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/HistorySettingsScreens~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/HistorySettingsScreens.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/HistorySettingsScreens.dia"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/Models.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Models.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Models~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Models.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/Models.dia"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/PicksScreen.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/PicksScreen.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/PicksScreen~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/PicksScreen.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/PicksScreen.dia"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/StockPredictorApp.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorApp.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorApp.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorApp.dia"
+  },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/TrainingScreen.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/TrainingScreen.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/TrainingScreen~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/TrainingScreen.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/TrainingScreen.dia"
+  }
+}
