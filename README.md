@@ -1,6 +1,20 @@
 # STOCKZ
 
-Swift macOS stock-scanning app for weekly AI-assisted watchlists, model diagnostics, risk review, alerts, and paper portfolio planning.
+Swift macOS stock-scanning app with a Python prediction backend for weekly AI-assisted watchlists, model diagnostics, risk review, alerts, paper-trade tracking, reports, and automation.
+
+## Overview
+
+STOCKZ is built around a Swift macOS app backed by the existing Python stock prediction pipeline. The app reads generated scan artifacts, model metadata, reports, and paper-trade history from the repository, then presents them in a native desktop workflow.
+
+It is designed to:
+
+- scan and rank U.S. stocks for short-term upside potential
+- explain why each pick ranked
+- compare watchlist candidates side by side
+- simulate paper portfolio sizing and risk
+- track historical scan outcomes
+- surface model performance, drift, and feature importance
+- automate weekly scans and midweek updates
 
 ## Swift App
 
@@ -19,7 +33,7 @@ The packaged app is written to:
 dist/Stock Predictor Swift.app
 ```
 
-## Current Features
+## Current App Features
 
 - Dashboard with current watchlist, model sync, market regime, and clickable ticker rows.
 - Pick detail drilldown with chart, score breakdown, why it ranked, stop/target, sector strength, model confidence, and invalidation rules.
@@ -30,19 +44,65 @@ dist/Stock Predictor Swift.app
 - Model Lab with AUC, training samples, label target, feature importance, calibration, and drift warnings.
 - Scan history timeline backed by saved scan and backtest artifacts.
 
-## Backend
+## Backend Commands
 
-The Swift app reads and runs the existing Python backend from the repository root. Key artifacts are generated under `stock_predictor/artifacts`.
-
-Common backend commands:
+The Swift app reads and runs the Python backend from the repository root. Key artifacts are generated under `stock_predictor/artifacts`.
 
 ```bash
 python3 main.py --top-n 10 --paper-trade
 python3 main.py --train
 python3 main.py --backtest-adaptive
+python3 main.py --analyze AAPL --universe full
 ```
 
 The app looks for a local Python environment at `.venv/bin/python3` first, then falls back to system Python.
+
+## Setup
+
+```bash
+git clone https://github.com/Crinklyink/STOCKZ.git
+cd STOCKZ
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Then edit `.env` with any email, scan, and model settings you want.
+
+## Automation
+
+Set up weekly and midweek macOS jobs:
+
+```bash
+python3 setup_schedule.py
+```
+
+Manual automation run:
+
+```bash
+python3 auto_run.py
+```
+
+## Project Structure
+
+```text
+STOCKZ/
+├── SwiftStockPredictor/        # Primary Swift macOS app
+├── dist/                       # Packaged app outputs
+├── main.py                     # Core Python CLI entry point
+├── auto_run.py                 # Sunday automation workflow
+├── midweek_check.py            # Wednesday update workflow
+├── setup_schedule.py           # Installs launchd schedules
+├── stock_predictor/
+│   ├── analysis/               # Indicators, macro, RS, patterns, trade signals
+│   ├── data/                   # Fetchers, caching, sentiment, fundamentals
+│   ├── models/                 # ML models, validation, monitoring
+│   ├── output/                 # Reports, alerts, tracking, HTML/PDF output
+│   ├── scoring/                # Composite scoring and portfolio logic
+│   └── artifacts/              # Latest scan and runtime outputs
+└── tests/                      # Python test suite
+```
 
 ## Git LFS
 
@@ -64,3 +124,7 @@ stock_predictor/models/*.pkl
 ## Legacy Python UI
 
 The older Python UI and automation scripts remain in the repo for compatibility, but new product work should target the Swift app.
+
+## Disclaimer
+
+This software is for research and educational use only. It is not financial advice. Markets are uncertain, and any trading strategy can lose money.
