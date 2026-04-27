@@ -66,8 +66,14 @@ class SentimentEngine:
 
     @property
     def finbert(self):  # type: ignore[no-untyped-def]
+        if not self.config.enable_finbert_sentiment:
+            self._finbert = False
+            return self._finbert
         if self._finbert is None and (pipeline is not None and TORCH_AVAILABLE):
             try:
+                os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+                os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+                os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
                 if os.getenv("STOCK_PREDICTOR_QUIET_RUNTIME") == "1":
                     with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                         self._finbert = pipeline(
@@ -295,7 +301,8 @@ class SentimentEngine:
         return float(sum(scores) / len(scores))
 
     def _score_finbert_batch(self, texts_by_ticker: Dict[str, List[str]]) -> Dict[str, float]:
-        if self.finbert in {None, False}:
+        finbert = self.finbert
+        if finbert is None or finbert is False:
             return {ticker: 0.0 for ticker in texts_by_ticker}
         results: Dict[str, float] = {}
         for ticker, texts in texts_by_ticker.items():
@@ -303,7 +310,7 @@ class SentimentEngine:
                 results[ticker] = 0.0
                 continue
             try:
-                outputs = self.finbert(texts[:20])
+                outputs = finbert(texts[:20])
             except Exception:
                 LOGGER.debug("finbert failed for %s", ticker, exc_info=True)
                 results[ticker] = 0.0

@@ -35,7 +35,16 @@ class UncertaintyModel:
         if values.size == 0:
             values = np.asarray([0.5], dtype=float)
         mean_probability = float(np.mean(values))
-        stddev = float(np.std(values))
+        # Use percentile range for robust uncertainty estimation: less sensitive to outliers
+        # in small bootstrap ensembles (typically 5–20 models).  The 90th-10th percentile
+        # range of a normal distribution equals ~2.56 * stddev, so dividing by 2.56 yields
+        # a value on the same scale as std, keeping the existing config thresholds valid.
+        if values.size >= 4:
+            p10 = float(np.percentile(values, 10))
+            p90 = float(np.percentile(values, 90))
+            stddev = (p90 - p10) / 2.56
+        else:
+            stddev = float(np.std(values))
         if stddev > self.config.adaptive_uncertainty_block:
             confidence = "low"
             allow_pick = False

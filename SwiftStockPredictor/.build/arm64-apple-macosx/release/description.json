@@ -24,6 +24,10 @@
       "inputs" : [
         {
           "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AdvancedScreens.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift"
         },
         {
@@ -71,6 +75,7 @@
       "moduleName" : "StockPredictorSwift",
       "moduleOutputPath" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/Modules/StockPredictorSwift.swiftmodule",
       "objects" : [
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AdvancedScreens.swift.o",
         "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.swift.o",
         "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/ContentView.swift.o",
         "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/DashboardScreen.swift.o",
@@ -131,6 +136,10 @@
       "outputs" : [
         {
           "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AdvancedScreens.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.swift.o"
         },
         {
@@ -172,6 +181,7 @@
       ],
       "prepareForIndexing" : false,
       "sources" : [
+        "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AdvancedScreens.swift",
         "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift",
         "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/ContentView.swift",
         "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/DashboardScreen.swift",
@@ -197,6 +207,7 @@
       "-package-name",
       "swiftstockpredictor",
       "-c",
+      "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AdvancedScreens.swift",
       "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift",
       "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/ContentView.swift",
       "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/DashboardScreen.swift",
@@ -282,6 +293,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AdvancedScreens.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift"
         },
         {
@@ -325,6 +340,10 @@
         {
           "kind" : "virtual",
           "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AdvancedScreens.swift.o"
         },
         {
           "kind" : "file",

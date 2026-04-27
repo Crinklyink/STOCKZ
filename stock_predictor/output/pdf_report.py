@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 try:  # pragma: no cover - optional dependency
+    import matplotlib
+    matplotlib.use("Agg")  # non-GUI backend — safe for background threads
     import matplotlib.pyplot as plt
 except Exception:  # pragma: no cover
     plt = None
@@ -101,13 +103,15 @@ def _write_price_chart(config: AppConfig, candidate: CandidateScore) -> Path | N
     out_path = config.report_dir / f"{candidate.ticker}_chart.png"
     x = [row["date"] for row in price_chart]
     y = [row["close"] for row in price_chart]
-    plt.figure(figsize=(4, 1.4))
-    plt.plot(x, y, color="green", linewidth=1.5)
-    plt.xticks([])
-    plt.yticks([])
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=120)
-    plt.close()
+    # Use Figure directly — thread-safe, does not touch the GUI event loop
+    from matplotlib.figure import Figure
+    fig = Figure(figsize=(4, 1.4))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(x, y, color="green", linewidth=1.5)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
     return out_path
 
 

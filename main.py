@@ -6,12 +6,16 @@ import argparse
 import json
 import logging
 import os
+import sys
+
+import subprocess
 import threading
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, Iterable, Optional
 
@@ -35,6 +39,11 @@ warnings.filterwarnings(
     "ignore",
     message=r"Warning: You are sending unauthenticated requests to the HF Hub.*",
 )
+warnings.simplefilter(action='ignore', category=FutureWarning)
+try:
+    pd.set_option('future.no_silent_downcasting', True)
+except Exception:
+    pass
 try:  # pragma: no cover - optional dependency warning class
     from requests import RequestsDependencyWarning
 
@@ -69,6 +78,9 @@ from stock_predictor.data.supply_chain import SupplyChainSignal, compute_supply_
 from stock_predictor.models.adaptive_model import AdaptivePredictor
 from stock_predictor.models.anomaly_model import AnomalyDetector, AnomalyResult
 from stock_predictor.models.ensemble import build_tree_ensemble_output
+from stock_predictor.models.monitoring import build_model_monitoring_payload
+from stock_predictor.models.regime_classifier import RegimeClassifier
+from stock_predictor.models.xgboost_model import XGBoostPredictor
 from stock_predictor.output.alerts import send_alerts
 from stock_predictor.output.backtest import BacktestTracker, SignalAttributionTracker, with_resolved_outcomes
 from stock_predictor.output.bot import send_endweek_results, send_midweek_update, send_weekly_picks
@@ -83,7 +95,7 @@ from stock_predictor.scoring.composite import (
 )
 from stock_predictor.scoring.news_reasoning import GPTNewsReasoner
 from stock_predictor.scoring.portfolio import select_portfolio
-from stock_predictor.utils import json_default, save_json, setup_logging
+from stock_predictor.utils import _sanitize, json_default, save_json, setup_logging
 
 LOGGER = logging.getLogger(__name__)
 
@@ -145,19 +157,29 @@ def persist_adaptive_regime_summary(
 
     if not regime_summary:
         return
-    metadata: dict[str, object] = {}
+    adaptive_metadata: dict[str, object] = {}
     if config.adaptive_metadata_path.exists():
         try:
-            metadata = json.loads(config.adaptive_metadata_path.read_text(encoding="utf-8"))
+            adaptive_metadata = json.loads(config.adaptive_metadata_path.read_text(encoding="utf-8"))
         except Exception:
-            metadata = {}
-    metadata["regime_summary"] = regime_summary
-    metadata["adaptive_regime_summary_source"] = source
+            adaptive_metadata = {}
+    adaptive_metadata["regime_summary"] = regime_summary
+    adaptive_metadata["adaptive_regime_summary_source"] = source
     if summary:
-        metadata["adaptive_backtest_summary"] = summary
-    payload = json.dumps(metadata, indent=2)
-    config.adaptive_metadata_path.write_text(payload, encoding="utf-8")
-    config.xgb_metadata_path.write_text(payload, encoding="utf-8")
+        adaptive_metadata["adaptive_backtest_summary"] = summary
+    save_json(config.adaptive_metadata_path, adaptive_metadata)
+
+    xgb_metadata: dict[str, object] = {}
+    if config.xgb_metadata_path.exists():
+        try:
+            xgb_metadata = json.loads(config.xgb_metadata_path.read_text(encoding="utf-8"))
+        except Exception:
+            xgb_metadata = {}
+    xgb_metadata["regime_summary"] = regime_summary
+    xgb_metadata["adaptive_regime_summary_source"] = source
+    if summary:
+        xgb_metadata["adaptive_backtest_summary"] = summary
+    save_json(config.xgb_metadata_path, xgb_metadata)
 
 
 @dataclass(slots=True)
@@ -340,9 +362,14 @@ def run_scan(
     flow_scores = flow_detector.score_universe(universe.keys(), prices, fresh=fresh)
     rs_scores = compute_rs_scores(price_frames, benchmark)
 
-    xgb = AdaptivePredictor(config)
-    xgb.active_breadth_percentile = macro_snapshot.breadth_percentile
-    adaptive_snapshot = xgb.regime_classifier.build_snapshot(
+    if config.feature_flags.adaptive_model:
+        xgb = AdaptivePredictor(config)
+        xgb.active_breadth_percentile = macro_snapshot.breadth_percentile
+        regime_classifier = xgb.regime_classifier
+    else:
+        xgb = XGBoostPredictor(config)
+        regime_classifier = RegimeClassifier(config)
+    adaptive_snapshot = regime_classifier.build_snapshot(
         price_frames=all_price_frames,
         benchmark_history=benchmark,
         breadth_history=fetcher.calculate_breadth_history(stage1_daily_frames),
@@ -354,7 +381,8 @@ def run_scan(
         tlt_history=fetcher.fetch_macro_history(config.tlt_ticker, fresh=fresh),
     )
     xgb.active_regime = adaptive_snapshot.label
-    xgb.active_market_snapshot = adaptive_snapshot
+    if hasattr(xgb, "active_market_snapshot"):
+        xgb.active_market_snapshot = adaptive_snapshot
     anomaly_detector = AnomalyDetector()
     training_report = xgb.last_report
     if config.feature_flags.auto_training_pipeline and not xgb.is_trained:
@@ -389,11 +417,13 @@ def run_scan(
         )
     if config.feature_flags.anomaly_detection:
         anomaly_detector.fit(all_price_frames)
-    feedback_rows = paper_tracker.completed_payload_rows(paper=True, weeks=8)
-    feedback_summary = xgb.apply_feedback(xgb.feedback_rows_from_payloads(feedback_rows))
-    for signal_name, multiplier in xgb.feature_health.broad_weight_adjustments().items():
-        if signal_name in adaptive_weights:
-            adaptive_weights[signal_name] *= multiplier
+    feedback_summary = {}
+    if isinstance(xgb, AdaptivePredictor):
+        feedback_rows = paper_tracker.completed_payload_rows(paper=True, weeks=8)
+        feedback_summary = xgb.apply_feedback(xgb.feedback_rows_from_payloads(feedback_rows))
+        for signal_name, multiplier in xgb.feature_health.broad_weight_adjustments().items():
+            if signal_name in adaptive_weights:
+                adaptive_weights[signal_name] *= multiplier
     adaptive_weight_total = sum(adaptive_weights.values()) or 1.0
     adaptive_weights = {
         signal_name: weight / adaptive_weight_total
@@ -563,9 +593,18 @@ def run_scan(
         "adaptive_feedback": feedback_summary,
     }
 
+    generated_at = datetime.now(timezone.utc).isoformat()
+    paper_rows = with_resolved_outcomes(backtest.performance_frame())
+    monitoring_payload = build_model_monitoring_payload(
+        candidates=[candidate.to_dict() for candidate in report_candidates],
+        paper_rows=paper_rows,
+        model_auc=float(training_report.auc if training_report else 0.0),
+        generated_at=generated_at,
+    )
+
     payload = {
         "run_id": run_id,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at,
         "runtime_seconds": round(time.perf_counter() - started, 2),
         "macro": asdict(macro_snapshot),
         "macro_summary": macro_summary,
@@ -588,6 +627,7 @@ def run_scan(
         "backtest_rows": backtest.performance_frame().to_dict(orient="records"),
         "weight_history": backtest.weight_history_frame().to_dict(orient="records"),
         "paper_trade_summary": rolling_paper_stats,
+        "model_monitoring": monitoring_payload,
         "signal_attribution_summary": attribution_tracker.signal_summary(),
         "terminal_report": render_terminal_report(
             report_candidates,
@@ -603,6 +643,7 @@ def run_scan(
         ),
         "pdf_report": None,
     }
+    save_json(config.model_monitoring_path, monitoring_payload)
     footer_lines = []
     if rolling_paper_stats:
         footer_lines.append(
@@ -822,9 +863,14 @@ def run_single_ticker_analysis(
     float_rotation_bonus_map = compute_float_rotation_bonuses(config, {ticker: bundle})
     threshold_used = resolve_active_threshold(config, macro_snapshot, threshold_override)
 
-    xgb = AdaptivePredictor(config)
-    xgb.active_breadth_percentile = macro_snapshot.breadth_percentile
-    adaptive_snapshot = xgb.regime_classifier.build_snapshot(
+    if config.feature_flags.adaptive_model:
+        xgb = AdaptivePredictor(config)
+        xgb.active_breadth_percentile = macro_snapshot.breadth_percentile
+        regime_classifier = xgb.regime_classifier
+    else:
+        xgb = XGBoostPredictor(config)
+        regime_classifier = RegimeClassifier(config)
+    adaptive_snapshot = regime_classifier.build_snapshot(
         price_frames=price_frames,
         benchmark_history=benchmark,
         breadth_history=fetcher.calculate_breadth_history(price_frames),
@@ -836,13 +882,15 @@ def run_single_ticker_analysis(
         tlt_history=fetcher.fetch_macro_history(config.tlt_ticker, fresh=fresh),
     )
     xgb.active_regime = adaptive_snapshot.label
-    xgb.active_market_snapshot = adaptive_snapshot
+    if hasattr(xgb, "active_market_snapshot"):
+        xgb.active_market_snapshot = adaptive_snapshot
     training_report = xgb.last_report
     model_training_samples = int((training_report.training_samples if training_report else 0) or 0)
     adaptive_weights = config.signal_weights.as_dict()
-    for signal_name, multiplier in xgb.feature_health.broad_weight_adjustments().items():
-        if signal_name in adaptive_weights:
-            adaptive_weights[signal_name] *= multiplier
+    if isinstance(xgb, AdaptivePredictor):
+        for signal_name, multiplier in xgb.feature_health.broad_weight_adjustments().items():
+            if signal_name in adaptive_weights:
+                adaptive_weights[signal_name] *= multiplier
     adaptive_weight_total = sum(adaptive_weights.values()) or 1.0
     adaptive_weights = {
         signal_name: weight / adaptive_weight_total
@@ -1654,11 +1702,152 @@ def run_training(*, fresh: bool = False, universe_mode: str | None = None) -> st
     def progress(message: str) -> None:
         print(f"[training] {message}", flush=True)
 
+    def run_isolated_mini_trainer(period: str, trials: int) -> tuple[SimpleNamespace, Dict[str, object]]:
+        project_root = os.fspath(Path(__file__).resolve().parent)
+        script_path = os.fspath(Path(project_root) / "scripts" / "tune_auc.py")
+        python_executable = os.getenv("STOCK_PREDICTOR_PYTHON") or os.sys.executable
+        args = [
+            python_executable,
+            script_path,
+            "--universe",
+            "mini",
+            "--period",
+            period,
+            "--trials",
+            str(max(int(trials), 0)),
+        ]
+        env = os.environ.copy()
+        env["PYTHONPATH"] = project_root
+        env.setdefault("OMP_NUM_THREADS", "1")
+        env.setdefault("OPENBLAS_NUM_THREADS", "1")
+        env.setdefault("MKL_NUM_THREADS", "1")
+        env.setdefault("NUMEXPR_NUM_THREADS", "1")
+        env.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+        result = subprocess.run(
+            args,
+            cwd=project_root,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            stderr_tail = "\n".join(result.stderr.strip().splitlines()[-20:])
+            stdout_tail = "\n".join(result.stdout.strip().splitlines()[-20:])
+            details = stderr_tail or stdout_tail or f"exit code {result.returncode}"
+            raise RuntimeError(f"Mini trainer subprocess failed: {details}")
+        payload_path = config.latest_scan_path.parent / "auc_tuning_report.json"
+        if not payload_path.exists():
+            raise RuntimeError("Mini trainer finished without auc_tuning_report.json")
+        payload = json.loads(payload_path.read_text(encoding="utf-8"))
+        report_payload = payload.get("training_report") if isinstance(payload, dict) else None
+        if not isinstance(report_payload, dict):
+            raise RuntimeError("Mini trainer report payload missing training_report")
+        report = SimpleNamespace(
+            trained=bool(report_payload.get("trained", True)),
+            training_samples=int(report_payload.get("training_samples", 0) or 0),
+            validation_samples=int(report_payload.get("validation_samples", 0) or 0),
+            model_family=str(report_payload.get("model_family", "XGB+LGBM")),
+            selected_profile=str(report_payload.get("selected_profile", "baseline")),
+            label_definition=str(report_payload.get("label_definition", "")),
+            positive_ratio=float(report_payload.get("positive_ratio", 0.0) or 0.0),
+            negative_ratio=float(report_payload.get("negative_ratio", 0.0) or 0.0),
+            scale_pos_weight=float(report_payload.get("scale_pos_weight", 1.0) or 1.0),
+            accuracy=float(report_payload.get("accuracy", 0.0) or 0.0),
+            precision=float(report_payload.get("precision", 0.0) or 0.0),
+            recall=float(report_payload.get("recall", 0.0) or 0.0),
+            auc=float(report_payload.get("auc", 0.0) or 0.0),
+            xgb_auc=float(report_payload.get("xgb_auc", 0.0) or 0.0),
+            lightgbm_auc=float(report_payload.get("lightgbm_auc", 0.0) or 0.0),
+            ensemble_auc=float(report_payload.get("ensemble_auc", 0.0) or 0.0),
+            short_horizon_auc=float(report_payload.get("short_horizon_auc", 0.0) or 0.0),
+            fold_aucs=list(report_payload.get("fold_aucs", [])),
+            feature_importance=dict(report_payload.get("feature_importance", {})),
+        )
+        walk_forward_summary = payload.get("walk_forward_summary", {}) if isinstance(payload, dict) else {}
+        return report, walk_forward_summary if isinstance(walk_forward_summary, dict) else {}
+
     progress("Preparing model training job")
     setup_logging(config.predictions_log)
     cache = SQLiteCache(config.cache_db)
     fetcher = MarketDataFetcher(config, cache)
     resolved_mode = universe_mode or config.default_universe
+    if resolved_mode == "mini":
+        config.training_search_trials = min(int(getattr(config, "training_search_trials", 12)), 10)
+        config.adaptive_uncertainty_models = min(int(config.adaptive_uncertainty_models), 6)
+        config.adaptive_cv_models = min(int(config.adaptive_cv_models), 4)
+        config.adaptive_backtest_models = min(int(config.adaptive_backtest_models), 2)
+    training_period = "2y" if resolved_mode == "mini" else config.training_history_period
+    if resolved_mode == "mini":
+        progress("Resolving mini universe")
+        mini_universe = fetcher.resolve_universe(mode=resolved_mode, fresh=fresh)
+        mini_ticker_count = sum(len(tickers) for tickers in mini_universe.values())
+        progress("Launching isolated mini trainer")
+        report, walk_summary = run_isolated_mini_trainer(
+            training_period,
+            int(getattr(config, "training_search_trials", 10)),
+        )
+        progress("Writing training report and model artifacts")
+        config.model_trained = bool(report.trained)
+        lines = [
+            "Training Report",
+            "Universe: mini",
+            f"Universe tickers: {mini_ticker_count}",
+            f"Training samples: {report.training_samples}",
+            f"Validation samples: {report.validation_samples}",
+            f"Model family: {report.model_family}",
+            f"Selected profile: {report.selected_profile}",
+            f"Label: {report.label_definition}",
+            f"Positive class: {report.positive_ratio * 100:.1f}% | Negative class: {report.negative_ratio * 100:.1f}%",
+            f"Scale pos weight: {report.scale_pos_weight:.2f}",
+            f"Accuracy: {report.accuracy:.3f}",
+            f"Precision: {report.precision:.3f}",
+            f"Recall: {report.recall:.3f}",
+            f"Walk-forward ensemble AUC: {report.auc:.3f}",
+            f"Walk-forward XGBoost AUC: {report.xgb_auc:.3f}",
+            f"Walk-forward LightGBM AUC: {report.lightgbm_auc:.3f}",
+            f"Validation ensemble AUC: {report.ensemble_auc:.3f}",
+            f"Validation short-horizon AUC (3d): {report.short_horizon_auc:.3f}",
+        ]
+        if report.fold_aucs:
+            lines.append(
+                "Fold AUCs: "
+                + " | ".join(
+                    f"{row.get('month', row.get('fold'))}: {float(row.get('auc', 0.0)):.3f}"
+                    for row in report.fold_aucs
+                )
+            )
+        if report.feature_importance:
+            top_features = list(report.feature_importance.items())[:10]
+            lines.append("Top predictive features:")
+            lines.append(" | ".join(f"{feature}: {value * 100:.1f}%" for feature, value in top_features))
+            if config.feature_importance_png.exists():
+                lines.append(f"Feature importance chart: {config.feature_importance_png}")
+        if walk_summary:
+            lines.append(
+                f"Walk-forward: win rate {float(walk_summary.get('win_rate', 0.0)):.2f}%, "
+                f"avg return {float(walk_summary.get('average_return', 0.0)):.2f}%, "
+                f"sharpe {float(walk_summary.get('sharpe', 0.0)):.2f}"
+            )
+            lines.append(f"Backtest report: {config.backtest_report_path}")
+            config.backtest_report_path.write_text(
+                "\n".join(
+                    [
+                        "# Walk-Forward Backtest (Mini)",
+                        "",
+                        f"Weeks: {int(walk_summary.get('weeks', 0) or 0)}",
+                        f"Win rate: {float(walk_summary.get('win_rate', 0.0)):.2f}%",
+                        f"Average return: {float(walk_summary.get('average_return', 0.0)):.2f}%",
+                        f"Gross average return: {float(walk_summary.get('gross_average_return', 0.0)):.2f}%",
+                        f"Round-trip cost: {float(walk_summary.get('round_trip_cost_bps', 0.0)):.2f} bps",
+                        f"Sharpe: {float(walk_summary.get('sharpe', 0.0)):.2f}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+        progress("Training complete")
+        return "\n".join(lines)
+
     progress(f"Resolving {resolved_mode} universe")
     universe = fetcher.resolve_universe(mode=resolved_mode, fresh=fresh)
     sector_map = {
@@ -1670,14 +1859,25 @@ def run_training(*, fresh: bool = False, universe_mode: str | None = None) -> st
         ticker for sector_tickers in universe.values() for ticker in sector_tickers
     }
     progress("Fetching historical daily price frames")
-    price_frames = fetcher.fetch_universe_daily_frames(
+    price_frames = fetcher.fetch_daily_frames_for_tickers(
+        universe_tickers,
         fresh=fresh,
-        mode=resolved_mode,
-        period=config.training_history_period,
+        period=training_period,
     )
-    predictor = AdaptivePredictor(config)
+    progress(f"Loaded {sum(1 for frame in price_frames.values() if not frame.empty)} price frames")
+    use_fast_mini_path = resolved_mode == "mini" or not config.feature_flags.adaptive_model
+    if use_fast_mini_path:
+        progress(
+            "Initializing RandomForest fallback trainer"
+            if not config.feature_flags.native_boosters
+            else "Initializing tree ensemble trainer (XGBoost + LightGBM)"
+        )
+        predictor = XGBoostPredictor(config, load_persisted=False)
+    else:
+        progress("Initializing adaptive predictor")
+        predictor = AdaptivePredictor(config, load_persisted=False)
     progress("Fetching sector and macro history")
-    sector_histories = fetcher.fetch_sector_history_for_period(config.training_history_period, fresh=fresh)
+    sector_histories = fetcher.fetch_sector_history_for_period(training_period, fresh=fresh)
     vix_history = fetcher.fetch_macro_history(config.vix_ticker, fresh=fresh)
     put_call_history = fetcher.fetch_macro_history(config.put_call_ticker, fresh=fresh)
     hyg_history = fetcher.fetch_macro_history(config.hyg_ticker, fresh=fresh)
@@ -1689,28 +1889,41 @@ def run_training(*, fresh: bool = False, universe_mode: str | None = None) -> st
     benchmark_history = fetcher.download_history(
         config.benchmark_ticker,
         interval="1d",
-        period=config.training_history_period,
+        period=training_period,
         ttl_seconds=config.cache_ttls.market_history,
         fresh=fresh,
         cache_only=False,
     )
     progress("Calculating market breadth features")
     breadth_history = fetcher.calculate_breadth_history(price_frames)
-    progress("Training adaptive regime ensemble")
-    report = predictor.fit(
-        price_frames,
-        save_model=True,
-        sector_map=sector_map,
-        sector_histories=sector_histories,
-        vix_history=vix_history,
-        earnings_dates_map=earnings_dates_map,
-        benchmark_history=benchmark_history,
-        breadth_history=breadth_history,
-        put_call_history=put_call_history,
-        hyg_history=hyg_history,
-        lqd_history=lqd_history,
-        tlt_history=tlt_history,
-    )
+    if use_fast_mini_path:
+        progress("Training RandomForest fallback" if not config.feature_flags.native_boosters else "Training tree ensemble")
+        report = predictor.fit(
+            price_frames,
+            save_model=True,
+            sector_map=sector_map,
+            sector_histories=sector_histories,
+            vix_history=vix_history,
+            earnings_dates_map=earnings_dates_map,
+            benchmark_history=benchmark_history,
+            breadth_history=breadth_history,
+        )
+    else:
+        progress("Training adaptive regime ensemble")
+        report = predictor.fit(
+            price_frames,
+            save_model=True,
+            sector_map=sector_map,
+            sector_histories=sector_histories,
+            vix_history=vix_history,
+            earnings_dates_map=earnings_dates_map,
+            benchmark_history=benchmark_history,
+            breadth_history=breadth_history,
+            put_call_history=put_call_history,
+            hyg_history=hyg_history,
+            lqd_history=lqd_history,
+            tlt_history=tlt_history,
+        )
     progress("Writing training report and model artifacts")
     config.model_trained = report.trained
     lines = [
@@ -1732,6 +1945,7 @@ def run_training(*, fresh: bool = False, universe_mode: str | None = None) -> st
         f"Walk-forward XGBoost AUC: {report.xgb_auc:.3f}",
         f"Walk-forward LightGBM AUC: {report.lightgbm_auc:.3f}",
         f"Validation ensemble AUC: {report.ensemble_auc:.3f}",
+        f"Validation short-horizon AUC (3d): {report.short_horizon_auc:.3f}",
     ]
     if report.fold_aucs:
         lines.append(
@@ -1753,18 +1967,26 @@ def run_training(*, fresh: bool = False, universe_mode: str | None = None) -> st
             lines.append("Feature importance chart unavailable (matplotlib not installed).")
     if config.feature_flags.walk_forward_backtester:
         progress("Running 12-week walk-forward validation")
-        walk_forward = predictor.walk_forward_backtest(
-            price_frames,
-            benchmark_history=benchmark_history,
-            breadth_history=breadth_history,
-            sector_histories=sector_histories,
-            vix_history=vix_history,
-            put_call_history=put_call_history,
-            hyg_history=hyg_history,
-            lqd_history=lqd_history,
-            tlt_history=tlt_history,
-            weeks=12,
-        )
+        if use_fast_mini_path:
+            walk_forward = predictor.walk_forward_backtest(
+                price_frames,
+                benchmark_history=benchmark_history,
+                breadth_history=breadth_history,
+                weeks=12,
+            )
+        else:
+            walk_forward = predictor.walk_forward_backtest(
+                price_frames,
+                benchmark_history=benchmark_history,
+                breadth_history=breadth_history,
+                sector_histories=sector_histories,
+                vix_history=vix_history,
+                put_call_history=put_call_history,
+                hyg_history=hyg_history,
+                lqd_history=lqd_history,
+                tlt_history=tlt_history,
+                weeks=12,
+            )
         progress("Saving walk-forward backtest report")
         config.backtest_report_path.write_text(walk_forward["markdown"], encoding="utf-8")
         summary = walk_forward["summary"]
@@ -1773,13 +1995,14 @@ def run_training(*, fresh: bool = False, universe_mode: str | None = None) -> st
                 f"Walk-forward: win rate {summary['win_rate']:.2f}%, avg return {summary['average_return']:.2f}%, sharpe {summary['sharpe']:.2f}"
             )
             lines.append(f"Backtest report: {config.backtest_report_path}")
-        persist_adaptive_regime_summary(
-            config,
-            walk_forward.get("regime_summary", {}),
-            summary=summary,
-            source="training_walk_forward",
-        )
-    if predictor.regime_ensembles:
+        if not use_fast_mini_path:
+            persist_adaptive_regime_summary(
+                config,
+                walk_forward.get("regime_summary", {}),
+                summary=summary,
+                source="training_walk_forward",
+            )
+    if hasattr(predictor, "regime_ensembles") and predictor.regime_ensembles:
         lines.append(f"Adaptive regimes: {', '.join(sorted(predictor.regime_ensembles))}")
     progress("Training complete")
     return "\n".join(lines)
@@ -1906,6 +2129,97 @@ def run_results() -> str:
     return "\n".join(lines)
 
 
+def run_lightweight_rolling_backtest(config, price_frames: Dict[str, pd.DataFrame], *, weeks: int = 12) -> Dict[str, object]:
+    """Fast deterministic backtest for the Swift UI's mini universe path."""
+
+    rows: list[dict[str, object]] = []
+    returns: list[float] = []
+    valid_frames = {
+        ticker: frame.sort_index().copy()
+        for ticker, frame in price_frames.items()
+        if frame is not None and not frame.empty and {"close", "volume"}.issubset(frame.columns)
+    }
+    all_dates = sorted(
+        {
+            pd.Timestamp(date).tz_convert(None).normalize()
+            if pd.Timestamp(date).tzinfo is not None
+            else pd.Timestamp(date).normalize()
+            for frame in valid_frames.values()
+            for date in frame.index[-90:]
+        }
+    )
+    week_points = [date for date in all_dates if date.dayofweek == config.training_sample_weekday][-weeks:]
+    for week_start in week_points:
+        picks = []
+        for ticker, frame in valid_frames.items():
+            history = frame.loc[pd.to_datetime(frame.index, utc=True).tz_localize(None).normalize() <= week_start]
+            future = frame.loc[
+                (pd.to_datetime(frame.index, utc=True).tz_localize(None).normalize() > week_start)
+                & (pd.to_datetime(frame.index, utc=True).tz_localize(None).normalize() <= week_start + pd.Timedelta(days=7))
+            ]
+            if len(history) < 30 or future.empty:
+                continue
+            close = pd.to_numeric(history["close"], errors="coerce").dropna()
+            volume = pd.to_numeric(history["volume"], errors="coerce").dropna()
+            if len(close) < 30 or volume.empty:
+                continue
+            entry = float(close.iloc[-1])
+            exit_price = float(pd.to_numeric(future["close"], errors="coerce").dropna().iloc[-1])
+            momentum = float(close.iloc[-1] / close.iloc[-20] - 1.0)
+            volume_ratio = float(volume.tail(5).mean() / max(volume.tail(30).mean(), 1.0))
+            score = momentum * 100.0 + min(volume_ratio, 3.0) * 4.0
+            realized = exit_price / entry - 1.0 - config.backtest_costs.round_trip_cost if entry else 0.0
+            picks.append((score, ticker, realized))
+        top = sorted(picks, reverse=True)[:10]
+        if not top:
+            continue
+        week_returns = [item[2] for item in top]
+        avg_return = float(sum(week_returns) / len(week_returns))
+        win_rate = float(sum(1 for value in week_returns if value > 0) / len(week_returns))
+        returns.append(avg_return)
+        rows.append(
+            {
+                "week": week_start.strftime("%Y-%m-%d"),
+                "regime": "mini_momentum",
+                "picks": len(top),
+                "win_rate": round(win_rate * 100.0, 2),
+                "avg_return": round(avg_return * 100.0, 2),
+                "top_pick": top[0][1],
+            }
+        )
+    sharpe = 0.0
+    if len(returns) > 1 and pd.Series(returns).std() > 0:
+        sharpe = float(pd.Series(returns).mean() / pd.Series(returns).std() * (52 ** 0.5))
+    summary = {
+        "weeks": len(rows),
+        "win_rate": round(float(pd.Series([row["win_rate"] for row in rows]).mean()) if rows else 0.0, 2),
+        "average_return": round(float(pd.Series([row["avg_return"] for row in rows]).mean()) if rows else 0.0, 2),
+        "sharpe": round(sharpe, 2),
+    }
+    regime_summary = {
+        "mini_momentum": {
+            "weeks": summary["weeks"],
+            "win_rate": summary["win_rate"],
+            "average_return": summary["average_return"],
+        }
+    }
+    markdown = [
+        "# Mini Rolling Backtest",
+        "",
+        "Fast app-safe rolling test using prior momentum, volume confirmation, and configured transaction costs.",
+        "",
+        f"OVERALL: {summary['weeks']} weeks | {summary['win_rate']:.2f}% win rate | {summary['average_return']:.2f}% avg | Sharpe {summary['sharpe']:.2f}",
+        "",
+        "| Week | Picks | Top Pick | Win Rate | Net Avg Return |",
+        "| --- | ---: | --- | ---: | ---: |",
+    ]
+    for row in rows:
+        markdown.append(
+            f"| {row['week']} | {row['picks']} | {row['top_pick']} | {row['win_rate']:.2f}% | {row['avg_return']:.2f}% |"
+        )
+    return {"rows": rows, "summary": summary, "regime_summary": regime_summary, "markdown": "\n".join(markdown)}
+
+
 def run_adaptive_backtest(*, fresh: bool = False, universe_mode: str | None = None) -> str:
     config = get_config()
     def progress(message: str) -> None:
@@ -1919,13 +2233,40 @@ def run_adaptive_backtest(*, fresh: bool = False, universe_mode: str | None = No
     progress(f"Resolving {resolved_mode} universe")
     universe = fetcher.resolve_universe(mode=resolved_mode, fresh=fresh)
     universe_tickers = {ticker for sector_tickers in universe.values() for ticker in sector_tickers}
+    if resolved_mode == "mini":
+        config.max_threads = 1
+        config.adaptive_backtest_models = 1
     progress(f"Fetching historical prices for {len(universe_tickers)} tickers")
-    price_frames = fetcher.fetch_universe_daily_frames(
+    price_frames = fetcher.fetch_daily_frames_for_tickers(
+        universe_tickers,
         fresh=fresh,
-        mode=resolved_mode,
         period=config.training_history_period,
     )
-    predictor = AdaptivePredictor(config)
+    progress(f"Loaded {sum(1 for frame in price_frames.values() if not frame.empty)} price frames")
+    if resolved_mode == "mini":
+        progress("Running lightweight rolling backtest")
+        result = run_lightweight_rolling_backtest(config, price_frames, weeks=12)
+        progress("Saving backtest report")
+        config.backtest_report_path.write_text(result.get("markdown", ""), encoding="utf-8")
+        persist_adaptive_regime_summary(
+            config,
+            result.get("regime_summary", {}),
+            summary=result.get("summary", {}),
+            source="mini_lightweight_backtest",
+        )
+        progress("Backtest complete")
+        summary = result.get("summary", {})
+        return (
+            "MINI ROLLING BACKTEST RESULTS\n"
+            "═══════════════════════════════════\n"
+            f"OVERALL: {int(summary.get('weeks', 0))} weeks | "
+            f"{float(summary.get('win_rate', 0.0)):.0f}% win rate | "
+            f"{float(summary.get('average_return', 0.0)):+.1f}% avg | "
+            f"Sharpe {float(summary.get('sharpe', 0.0)):.2f}\n"
+            f"Report: {config.backtest_report_path}"
+        )
+    progress("Initializing adaptive predictor")
+    predictor = AdaptivePredictor(config, load_persisted=False)
     progress("Fetching benchmark and macro history")
     benchmark_history = fetcher.download_history(
         config.benchmark_ticker,
@@ -1943,7 +2284,7 @@ def run_adaptive_backtest(*, fresh: bool = False, universe_mode: str | None = No
     tlt_history = fetcher.fetch_macro_history(config.tlt_ticker, fresh=fresh)
     progress("Calculating breadth and regime features")
     breadth_history = fetcher.calculate_breadth_history(price_frames)
-    backtest_weeks = 26 if resolved_mode == "mini" else 52
+    backtest_weeks = 8 if resolved_mode == "mini" else 52
     progress(f"Running {backtest_weeks}-week rolling backtest")
     result = predictor.walk_forward_backtest(
         price_frames,

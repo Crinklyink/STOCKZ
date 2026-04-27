@@ -1,5 +1,5 @@
 {
-  "trained_at": "2026-04-10T03:15:32.626189+00:00",
+  "trained_at": "2026-04-26T18:15:48.839695+00:00",
   "feature_columns": [
     "return_1",
     "return_5",
@@ -27,13 +27,41 @@
     "trend_consistency",
     "price_acceleration",
     "volume_trend",
+    "micro_slippage_proxy",
+    "micro_turnover_proxy",
+    "micro_impact_proxy",
     "resistance_distance",
     "earnings_proximity_score",
-    "breadth_percentile"
+    "breadth_percentile",
+    "vwap_trend",
+    "obv_acceleration",
+    "atr_norm_return",
+    "days_to_next_earnings",
+    "fund_revenue_growth",
+    "fund_revenue_growth_ttm",
+    "fund_gross_margin",
+    "fund_operating_margin",
+    "fund_free_cash_flow_margin",
+    "fund_debt_to_assets",
+    "fund_share_change",
+    "fund_margin_trend_ttm",
+    "fund_debt_change_ttm",
+    "fund_share_dilution_ttm",
+    "macro_rates_level",
+    "macro_curve_slope",
+    "macro_credit_spread",
+    "macro_inflation_expectation",
+    "macro_unemployment",
+    "macro_policy_rate",
+    "macro_regime_expansion_flag",
+    "macro_regime_cooling_flag",
+    "macro_regime_stress_flag",
+    "macro_regime_transition_up",
+    "macro_regime_transition_down"
   ],
-  "auc": 0.6200615384615384,
+  "auc": 0.5,
   "ensemble_weights": {
-    "xgb": 0.9,
-    "lgbm": 0.1
+    "xgb": 1.0,
+    "lgbm": 0.0
   }
 }

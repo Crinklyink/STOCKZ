@@ -32,6 +32,19 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _sanitize(obj: Any) -> Any:
+    """Recursively replace NaN/Inf floats with None so output is valid JSON."""
+    if isinstance(obj, float):
+        return None if not math.isfinite(obj) else obj
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    if isinstance(obj, tuple):
+        return [_sanitize(v) for v in obj]
+    return obj
+
+
 def json_default(value: Any) -> Any:
     """Default serializer for JSON exports."""
 
@@ -45,13 +58,15 @@ def json_default(value: Any) -> Any:
 
 
 def save_json(path: Path, payload: Any) -> None:
-    """Write JSON to disk."""
+    """Write JSON to disk, sanitizing NaN/Inf so output is always valid JSON."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(payload, indent=2, default=json_default),
+        json.dumps(_sanitize(payload), indent=2, default=json_default),
         encoding="utf-8",
     )
+
+
 
 
 def coerce_float(value: Any, default: float = 0.0) -> float:

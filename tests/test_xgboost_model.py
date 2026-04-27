@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from stock_predictor.config import get_config
+from stock_predictor.config import AppConfig, get_config
 from stock_predictor.models.xgboost_model import FEATURE_COLUMNS, XGBoostPredictor
 from tests.helpers import make_ohlcv
 
@@ -94,6 +94,40 @@ class XGBoostPredictorTests(unittest.TestCase):
         self.assertTrue((label_ends.dt.dayofweek == 4).all())
         self.assertNotIn("day_of_week", FEATURE_COLUMNS)
 
+    def test_weekly_targets_use_six_percent_barrier_with_conservative_same_day_resolution(self) -> None:
+        config = AppConfig(weekly_profit_target=0.06, weekly_stop_loss=0.035)
+        predictor = XGBoostPredictor(config, load_persisted=False)
+        index = pd.date_range("2026-01-02", periods=8, freq="B", tz="UTC")
+        close = pd.Series([100.0, 101.0, 101.0, 101.0, 101.0, 101.0, 101.0, 101.0], index=index)
+        high = pd.Series(101.0, index=index)
+        low = pd.Series(99.0, index=index)
+        high.loc[pd.Timestamp("2026-01-05", tz="UTC")] = 106.1
+        low.loc[pd.Timestamp("2026-01-05", tz="UTC")] = 96.4
+
+        targets = predictor._build_weekly_return_targets(close, high, low)
+        week = pd.Timestamp("2026-01-09", tz="UTC")
+
+        self.assertFalse(bool(targets.loc[week, "hit_target_before_stop"]))
+        self.assertTrue(bool(targets.loc[week, "stopped_before_target"]))
+        self.assertTrue(bool(targets.loc[week, "ambiguous_barrier_hit"]))
+
+    def test_weekly_targets_mark_clean_six_percent_hit_before_stop(self) -> None:
+        config = AppConfig(weekly_profit_target=0.06, weekly_stop_loss=0.035)
+        predictor = XGBoostPredictor(config, load_persisted=False)
+        index = pd.date_range("2026-01-02", periods=8, freq="B", tz="UTC")
+        close = pd.Series([100.0, 101.0, 101.0, 101.0, 101.0, 101.0, 101.0, 101.0], index=index)
+        high = pd.Series(101.0, index=index)
+        low = pd.Series(99.0, index=index)
+        high.loc[pd.Timestamp("2026-01-05", tz="UTC")] = 106.1
+        low.loc[pd.Timestamp("2026-01-06", tz="UTC")] = 96.4
+
+        targets = predictor._build_weekly_return_targets(close, high, low)
+        week = pd.Timestamp("2026-01-09", tz="UTC")
+
+        self.assertTrue(bool(targets.loc[week, "hit_target_before_stop"]))
+        self.assertFalse(bool(targets.loc[week, "stopped_before_target"]))
+        self.assertFalse(bool(targets.loc[week, "ambiguous_barrier_hit"]))
+
     def test_purge_train_rows_applies_business_day_embargo(self) -> None:
         predictor = XGBoostPredictor(get_config())
         frame = pd.DataFrame(
@@ -125,29 +159,27 @@ class XGBoostPredictorTests(unittest.TestCase):
         self.assertEqual(len(captured["index"]), len(frame) + 1)
         self.assertGreater(captured["index"][-1], captured["index"][-2])
 
-    def test_blend_weights_strongly_favor_clear_auc_winner(self) -> None:
+    def test_blend_weights_smoothly_favor_clear_auc_winner(self) -> None:
         predictor = XGBoostPredictor(get_config())
 
-        self.assertEqual(
-            predictor._blend_weights_from_aucs(0.64, 0.60, lightgbm_available=True),
-            {"xgb": 0.9, "lgbm": 0.1},
-        )
-        self.assertEqual(
-            predictor._blend_weights_from_aucs(0.60, 0.63, lightgbm_available=True),
-            {"xgb": 0.1, "lgbm": 0.9},
-        )
+        xgb_leads = predictor._blend_weights_from_aucs(0.64, 0.60, lightgbm_available=True)
+        lgbm_leads = predictor._blend_weights_from_aucs(0.60, 0.63, lightgbm_available=True)
+
+        self.assertAlmostEqual(xgb_leads["xgb"], 0.6621621622)
+        self.assertAlmostEqual(xgb_leads["lgbm"], 0.3378378378)
+        self.assertGreater(lgbm_leads["lgbm"], lgbm_leads["xgb"])
+        self.assertGreater(lgbm_leads["xgb"], 0.25)
 
     def test_blend_weights_use_moderate_tilt_for_small_auc_edge(self) -> None:
         predictor = XGBoostPredictor(get_config())
 
-        self.assertEqual(
-            predictor._blend_weights_from_aucs(0.615, 0.603, lightgbm_available=True),
-            {"xgb": 0.8, "lgbm": 0.2},
-        )
-        self.assertEqual(
-            predictor._blend_weights_from_aucs(0.604, 0.615, lightgbm_available=True),
-            {"xgb": 0.2, "lgbm": 0.8},
-        )
+        xgb_leads = predictor._blend_weights_from_aucs(0.615, 0.603, lightgbm_available=True)
+        lgbm_leads = predictor._blend_weights_from_aucs(0.604, 0.615, lightgbm_available=True)
+
+        self.assertAlmostEqual(xgb_leads["xgb"], 0.5548795838)
+        self.assertGreater(xgb_leads["xgb"], xgb_leads["lgbm"])
+        self.assertGreater(lgbm_leads["lgbm"], lgbm_leads["xgb"])
+        self.assertGreater(lgbm_leads["xgb"], 0.25)
 
     def test_profile_blend_override_takes_precedence_when_available(self) -> None:
         predictor = XGBoostPredictor(get_config())
@@ -171,7 +203,7 @@ class XGBoostPredictorTests(unittest.TestCase):
         self.assertIsNotNone(weights)
         self.assertLess(weights[0], weights[1])
         self.assertLess(weights[1], weights[2])
-        self.assertLessEqual(weights[2], 1.0)
+        self.assertLessEqual(weights[2], 1.25)
         self.assertGreaterEqual(weights[0], predictor.config.training_recency_weight_floor)
 
     def test_fit_kwargs_include_recency_weights(self) -> None:

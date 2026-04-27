@@ -8,6 +8,8 @@ logs/
 reports/
 build/
 dist/Stock Predictor/
+SwiftStockPredictor/.build/
+dist/Stock Predictor Swift 2.app/
 .pytest_cache/
 stock_predictor/artifacts/*.sqlite3
 stock_predictor/artifacts/*.db

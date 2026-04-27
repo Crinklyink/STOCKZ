@@ -15,6 +15,17 @@ from stock_predictor.scoring.adaptive import evolve_weights, normalize_weights
 from stock_predictor.scoring.composite import CandidateScore
 
 
+def apply_transaction_costs(
+    returns: pd.Series,
+    *,
+    round_trip_cost: float,
+) -> pd.Series:
+    """Return net returns after explicit round-trip cost assumptions."""
+
+    numeric = pd.to_numeric(returns, errors="coerce")
+    return numeric - max(float(round_trip_cost), 0.0)
+
+
 def _week_labels(series: pd.Series) -> pd.Series:
     timestamps = pd.to_datetime(series, utc=True, errors="coerce")
     naive = timestamps.dt.tz_localize(None)
@@ -680,6 +691,11 @@ class BacktestTracker:
         frame = _with_resolved_outcomes(frame).dropna(subset=["realized_return"]).copy()
         if frame.empty:
             return {}
+        net_return = apply_transaction_costs(
+            frame["realized_return"],
+            round_trip_cost=0.0,
+        )
+        frame["net_realized_return"] = net_return
         frame["week"] = _week_labels(frame["created_at"])
         unique_weeks = frame["week"].drop_duplicates().tolist()[:weeks]
         frame = frame[frame["week"].isin(unique_weeks)]
@@ -693,6 +709,7 @@ class BacktestTracker:
             "target_hit_rate": float(frame["resolved_target_hit"].mean() * 100.0),
             "positive_return_rate": float(frame["positive_return"].mean() * 100.0),
             "average_return": float(frame["realized_return"].mean() * 100.0),
+            "net_average_return": float(frame["net_realized_return"].mean() * 100.0),
             "average_win": avg_win,
             "average_loss": avg_loss,
             "best_pick": str(best["ticker"]),
@@ -763,9 +780,11 @@ class BacktestTracker:
         frame = _with_resolved_outcomes(self.paper_results_frame()).dropna(subset=["realized_return"]).copy()
         if frame.empty:
             return {}
+        frame["net_realized_return"] = frame["realized_return"]
         frame["week"] = _week_labels(frame["created_at"])
         weekly = frame.groupby("week", as_index=False).agg(
             avg_return=("realized_return", "mean"),
+            net_avg_return=("net_realized_return", "mean"),
             win_rate=("resolved_target_hit", "mean"),
             positive_return_rate=("positive_return", "mean"),
         )
@@ -785,6 +804,7 @@ class BacktestTracker:
             "target_hit_rate": float(frame["resolved_target_hit"].mean() * 100.0),
             "positive_return_rate": float(frame["positive_return"].mean() * 100.0),
             "average_return": float(frame["realized_return"].mean() * 100.0),
+            "net_average_return": float(frame["net_realized_return"].mean() * 100.0),
             "best_week": str(best_week["week"]),
             "best_week_return": float(best_week["avg_return"] * 100.0),
             "worst_week": str(worst_week["week"]),
@@ -800,7 +820,7 @@ class BacktestTracker:
         frame["week"] = _week_labels(frame["created_at"])
         return int(frame["week"].nunique())
 
-    def threshold_recommendation(self, *, min_weeks: int = 4) -> Dict[str, float | int] | None:
+    def threshold_recommendation(self, *, min_weeks: int = 8) -> Dict[str, float | int] | None:
         frame = _with_resolved_outcomes(self.paper_results_frame()).dropna(subset=["realized_return"]).copy()
         if frame.empty:
             return None
@@ -812,9 +832,12 @@ class BacktestTracker:
         best = None
         observed_min = max(int(frame["final_score"].min() // 1), 45)
         observed_max = min(int(frame["final_score"].max() // 1) + 1, 90)
+        # Require at least 20 qualifying picks so win-rate estimates are meaningful
+        # before reporting a threshold recommendation.
+        min_sample_count = max(20, min_weeks * 2)
         for threshold in range(observed_min, observed_max + 1, 2):
             subset = frame.loc[frame["final_score"] >= threshold]
-            if len(subset) < min_weeks or subset["week"].nunique() < min_weeks:
+            if len(subset) < min_sample_count or subset["week"].nunique() < min_weeks:
                 continue
             win_rate = float(subset["resolved_target_hit"].mean())
             avg_return = float(subset["realized_return"].mean())

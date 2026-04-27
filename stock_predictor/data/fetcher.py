@@ -103,6 +103,14 @@ class MarketDataFetcher:
             history = self._download_history_alpha_vantage(ticker, interval=interval)
             if history.empty:
                 self._log_provider_failure("alpha_vantage", ticker, f"no data [{interval} {period}] after yahoo retries: {last_error}")
+        if (history is None or history.empty) and self.config.alpaca_api_key and self.config.alpaca_api_secret:
+            history = self._download_history_alpaca(ticker, interval=interval, period=period)
+            if history.empty:
+                self._log_provider_failure("alpaca", ticker, f"no data [{interval} {period}] after yahoo retries: {last_error}")
+        if (history is None or history.empty) and self.config.polygon_api_key:
+            history = self._download_history_polygon(ticker, interval=interval, period=period)
+            if history.empty:
+                self._log_provider_failure("polygon", ticker, f"no data [{interval} {period}] after yahoo retries: {last_error}")
         if history is None or history.empty:
             return pd.DataFrame()
         history = self._postprocess_history(history)
@@ -142,6 +150,62 @@ class MarketDataFetcher:
         normalized = normalized[~normalized.index.isna()]
         normalized = normalized[~normalized.index.duplicated(keep="last")]
         return normalized.sort_index()
+
+    def _download_history_alpaca(self, ticker: str, *, interval: str, period: str) -> pd.DataFrame:
+        timeframe = "1Day" if interval == "1d" else "1Hour"
+        start = (datetime.now(timezone.utc) - _period_to_timedelta(period)).isoformat()
+        try:
+            response = requests.get(
+                f"{self.config.alpaca_data_base_url.rstrip('/')}/v2/stocks/{ticker}/bars",
+                headers={
+                    "APCA-API-KEY-ID": self.config.alpaca_api_key or "",
+                    "APCA-API-SECRET-KEY": self.config.alpaca_api_secret or "",
+                },
+                params={
+                    "timeframe": timeframe,
+                    "start": start,
+                    "adjustment": "all",
+                    "limit": 10_000,
+                },
+                timeout=25,
+            )
+            response.raise_for_status()
+            bars = response.json().get("bars", [])
+        except Exception as exc:
+            LOGGER.debug("Alpaca history unavailable for %s", ticker, exc_info=True)
+            self._log_provider_failure("alpaca", ticker, str(exc))
+            return pd.DataFrame()
+        if not bars:
+            return pd.DataFrame()
+        frame = pd.DataFrame(bars).rename(
+            columns={"t": "date", "o": "open", "h": "high", "l": "low", "c": "close", "v": "volume"}
+        )
+        return self._postprocess_history(frame)
+
+    def _download_history_polygon(self, ticker: str, *, interval: str, period: str) -> pd.DataFrame:
+        multiplier = 1
+        timespan = "day" if interval == "1d" else "hour"
+        end = datetime.now(timezone.utc).date()
+        start = (datetime.now(timezone.utc) - _period_to_timedelta(period)).date()
+        try:
+            response = requests.get(
+                f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{start}/{end}",
+                params={"adjusted": "true", "sort": "asc", "limit": 50_000, "apiKey": self.config.polygon_api_key},
+                timeout=25,
+            )
+            response.raise_for_status()
+            rows = response.json().get("results", [])
+        except Exception as exc:
+            LOGGER.debug("Polygon history unavailable for %s", ticker, exc_info=True)
+            self._log_provider_failure("polygon", ticker, str(exc))
+            return pd.DataFrame()
+        if not rows:
+            return pd.DataFrame()
+        frame = pd.DataFrame(rows).rename(
+            columns={"t": "date", "o": "open", "h": "high", "l": "low", "c": "close", "v": "volume"}
+        )
+        frame["date"] = pd.to_datetime(frame["date"], unit="ms", utc=True, errors="coerce")
+        return self._postprocess_history(frame)
 
     def fetch_info(self, ticker: str, fresh: bool = False) -> Dict[str, Any]:
         cache_key = f"info:{ticker}"
@@ -306,7 +370,14 @@ class MarketDataFetcher:
             return pd.Series(dtype=float)
         sma50 = close_frame.rolling(50, min_periods=50).mean()
         valid = close_frame.notna() & sma50.notna()
-        breadth = (close_frame > sma50).where(valid).mean(axis=1, skipna=True).fillna(0.5)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            try:
+                pd.set_option('future.no_silent_downcasting', True)
+            except Exception:
+                pass
+            breadth = (close_frame > sma50).where(valid).mean(axis=1, skipna=True).fillna(0.5)
         return breadth.astype(float).sort_index()
 
     def _build_close_matrix(self, price_frames: Dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -783,6 +854,20 @@ def filter_recent_news(news_items: Iterable[Dict[str, Any]], days: int = 7) -> L
     return filtered
 
 
+def _period_to_timedelta(period: str) -> timedelta:
+    value = str(period or "1y").strip().lower()
+    match = re.match(r"^(\d+)([dmy])", value)
+    if not match:
+        return timedelta(days=365)
+    amount = int(match.group(1))
+    unit = match.group(2)
+    if unit == "d":
+        return timedelta(days=amount)
+    if unit == "m":
+        return timedelta(days=amount * 31)
+    return timedelta(days=amount * 365)
+
+
 def provider_health_check(config: AppConfig) -> str:
     cache = SQLiteCache(config.cache_db)
     fetcher = MarketDataFetcher(config, cache)
@@ -797,6 +882,18 @@ def provider_health_check(config: AppConfig) -> str:
         lines.append(f"Alpha Vantage    {'OK' if not av.empty else 'FAIL'}   (avg {time.perf_counter() - start:.1f}s/ticker)")
     else:
         lines.append("Alpha Vantage    NOT CONFIGURED")
+    if config.alpaca_api_key and config.alpaca_api_secret:
+        start = time.perf_counter()
+        alpaca = fetcher._download_history_alpaca("SPY", interval="1d", period="1mo")
+        lines.append(f"Alpaca           {'OK' if not alpaca.empty else 'FAIL'}   (avg {time.perf_counter() - start:.1f}s/ticker)")
+    else:
+        lines.append("Alpaca           NOT CONFIGURED")
+    if config.polygon_api_key:
+        start = time.perf_counter()
+        polygon = fetcher._download_history_polygon("SPY", interval="1d", period="1mo")
+        lines.append(f"Polygon          {'OK' if not polygon.empty else 'FAIL'}   (avg {time.perf_counter() - start:.1f}s/ticker)")
+    else:
+        lines.append("Polygon          NOT CONFIGURED")
     start = time.perf_counter()
     sec_map = fetcher.fetch_sec_ticker_map(fresh=False)
     lines.append(f"Congress / SEC   {'OK' if bool(sec_map) else 'FAIL'}   (avg {time.perf_counter() - start:.1f}s/query)")

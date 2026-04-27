@@ -437,6 +437,23 @@ def build_candidate_score(
         for column in price_chart_frame.columns
     ]
     price_chart_frame = price_chart_frame.loc[:, ~pd.Index(price_chart_frame.columns).duplicated(keep="last")]
+    analyst_view = build_analyst_explainability(
+        ticker=ticker,
+        final_score=final_score,
+        current_price=current_price,
+        stop_loss=stop_loss,
+        targets=targets,
+        risk_reward=risk_reward,
+        ensemble_output=ensemble_output,
+        data_quality=data_quality,
+        pattern_history=pattern_history,
+        confluence_checks=confluence_checks,
+        technical_scores=technical_signal_scores,
+        notes=notes,
+        meets_threshold=final_score >= threshold_used,
+        threshold_used=threshold_used,
+    )
+
     return CandidateScore(
         ticker=ticker,
         sector=sector,
@@ -506,6 +523,7 @@ def build_candidate_score(
             "data_quality": asdict(data_quality),
             "ensemble": asdict(ensemble_output),
             "gpt_reasoning": gpt_reasoning,
+            "analyst": analyst_view,
             "weights": weights,
             "subscores": {
                 "technical_signals": technical_signal_scores,
@@ -520,6 +538,81 @@ def build_candidate_score(
             "price_chart": price_chart_frame[["date", "open", "high", "low", "close", "volume"]].to_dict(orient="records"),
         },
     )
+
+
+def build_analyst_explainability(
+    *,
+    ticker: str,
+    final_score: float,
+    current_price: float,
+    stop_loss: float,
+    targets: Dict[str, float],
+    risk_reward: float,
+    ensemble_output: EnsembleOutput,
+    data_quality: DataQualityResult,
+    pattern_history: PatternWinRateResult,
+    confluence_checks: Dict[str, bool],
+    technical_scores: Dict[str, float],
+    notes: List[str],
+    meets_threshold: bool,
+    threshold_used: float,
+) -> Dict[str, Any]:
+    """Build compact analyst-facing reasoning for the Swift UI."""
+
+    positive: List[str] = []
+    negative: List[str] = []
+    for name, passed in sorted(confluence_checks.items()):
+        label = name.replace("_", " ").title()
+        if passed:
+            positive.append(label)
+        else:
+            negative.append(label)
+    strongest = sorted(technical_scores.items(), key=lambda item: item[1], reverse=True)[:3]
+    weakest = sorted(technical_scores.items(), key=lambda item: item[1])[:3]
+    positive.extend([f"{name.replace('_', ' ').title()} {score:.0f}/100" for name, score in strongest if score >= 55])
+    negative.extend([f"{name.replace('_', ' ').title()} {score:.0f}/100" for name, score in weakest if score <= 45])
+    data_warnings = list(getattr(data_quality, "issues", []))
+    if data_warnings:
+        negative.extend([f"Data warning: {warning}" for warning in data_warnings[:2]])
+    invalidation = [
+        f"Close below stop near ${stop_loss:.2f}",
+        "Market regime flips risk-off or VIX expands sharply",
+        "Volume dries up below the recent 20-day average",
+    ]
+    if not meets_threshold:
+        why_not = f"Below official threshold by {max(0.0, threshold_used - final_score):.1f} points."
+    elif data_quality.score < 0.75:
+        why_not = "Eligible score, but data quality needs review before conviction."
+    else:
+        why_not = "Official candidate if it remains inside portfolio risk limits."
+    target = float(targets.get("tp2") or targets.get("tp1") or current_price)
+    reward_pct = ((target / current_price) - 1.0) * 100.0 if current_price else 0.0
+    risk_pct = ((current_price / stop_loss) - 1.0) * 100.0 if stop_loss else 0.0
+    confidence = clamp(float(ensemble_output.probability), 0.0, 1.0)
+    return {
+        "why_this_pick": positive[:6] or ["Model score is above the current scan floor"],
+        "negative_drivers": negative[:6] or ["No major blocker surfaced"],
+        "invalidation": invalidation,
+        "similar_historical_setups": [
+            f"{pattern_history.label} pattern history",
+            f"{pattern_history.sample_size} comparable setups tracked",
+            f"{pattern_history.win_rate * 100:.0f}% historical win rate",
+        ],
+        "backtest_confidence": round(confidence * 100.0, 1),
+        "model_confidence": getattr(ensemble_output, "confidence_label", "medium"),
+        "risk_reward_map": {
+            "entry": round(current_price, 2),
+            "stop": round(stop_loss, 2),
+            "target": round(target, 2),
+            "reward_pct": round(reward_pct, 2),
+            "risk_pct": round(risk_pct, 2),
+            "risk_reward": round(risk_reward, 2),
+        },
+        "data_freshness": "Current scan artifact",
+        "data_quality_warnings": data_warnings[:4],
+        "why_not_official": why_not,
+        "notes": notes[:4],
+    }
 
 
 def _technical_subscores(

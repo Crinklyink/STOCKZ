@@ -151,38 +151,41 @@ class BacktestTrackerTests(unittest.TestCase):
                 for offset in range(4):
                     created_at = (now - timedelta(days=7 * (offset + 1))).isoformat()
                     week_label = f"run-{offset}"
-                    conn.execute(
-                        """
-                        INSERT OR REPLACE INTO paper_predictions
-                        (run_id, ticker, created_at, entry_price, target_price, final_score, payload_json)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (week_label, f"HIGH{offset}", created_at, 100.0, 104.0, 72.0, "{}"),
-                    )
-                    conn.execute(
-                        """
-                        INSERT OR REPLACE INTO paper_predictions
-                        (run_id, ticker, created_at, entry_price, target_price, final_score, payload_json)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (week_label, f"LOW{offset}", created_at, 100.0, 104.0, 54.0, "{}"),
-                    )
-                    conn.execute(
-                        """
-                        INSERT OR REPLACE INTO paper_evaluations
-                        (run_id, ticker, evaluated_at, latest_price, realized_return, hit_target)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        """,
-                        (week_label, f"HIGH{offset}", created_at, 106.0, 0.06, 1),
-                    )
-                    conn.execute(
-                        """
-                        INSERT OR REPLACE INTO paper_evaluations
-                        (run_id, ticker, evaluated_at, latest_price, realized_return, hit_target)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        """,
-                        (week_label, f"LOW{offset}", created_at, 99.0, -0.01, 0),
-                    )
+                    for slot in range(5):
+                        high_ticker = f"HIGH{offset}{slot}"
+                        low_ticker = f"LOW{offset}{slot}"
+                        conn.execute(
+                            """
+                            INSERT OR REPLACE INTO paper_predictions
+                            (run_id, ticker, created_at, entry_price, target_price, final_score, payload_json)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (week_label, high_ticker, created_at, 100.0, 104.0, 72.0, "{}"),
+                        )
+                        conn.execute(
+                            """
+                            INSERT OR REPLACE INTO paper_predictions
+                            (run_id, ticker, created_at, entry_price, target_price, final_score, payload_json)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (week_label, low_ticker, created_at, 100.0, 104.0, 54.0, "{}"),
+                        )
+                        conn.execute(
+                            """
+                            INSERT OR REPLACE INTO paper_evaluations
+                            (run_id, ticker, evaluated_at, latest_price, realized_return, hit_target)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (week_label, high_ticker, created_at, 106.0, 0.06, 1),
+                        )
+                        conn.execute(
+                            """
+                            INSERT OR REPLACE INTO paper_evaluations
+                            (run_id, ticker, evaluated_at, latest_price, realized_return, hit_target)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (week_label, low_ticker, created_at, 99.0, -0.01, 0),
+                        )
                 conn.commit()
 
             recommendation = tracker.threshold_recommendation(min_weeks=4)

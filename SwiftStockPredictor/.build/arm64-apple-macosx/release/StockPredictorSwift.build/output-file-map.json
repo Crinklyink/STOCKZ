@@ -4,6 +4,12 @@
     "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/StockPredictorSwift.o",
     "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/primary.swiftdeps"
   },
+  "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AdvancedScreens.swift": {
+    "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AdvancedScreens.swift.o",
+    "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AdvancedScreens~partial.swiftmodule",
+    "swift-dependencies": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AdvancedScreens.swiftdeps",
+    "diagnostics": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AdvancedScreens.dia"
+  },
   "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/Sources/AppState.swift": {
     "object": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState.swift.o",
     "swiftmodule": "/Users/crinklyink/Desktop/Stock scan/SwiftStockPredictor/.build/arm64-apple-macosx/release/StockPredictorSwift.build/AppState~partial.swiftmodule",

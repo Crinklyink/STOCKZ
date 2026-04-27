@@ -39,10 +39,10 @@ class AdaptivePredictor:
 
     model_family = "AdaptiveRegimeEnsemble"
 
-    def __init__(self, config: AppConfig | None = None, horizon_days: int = 5) -> None:
+    def __init__(self, config: AppConfig | None = None, horizon_days: int = 5, *, load_persisted: bool = True) -> None:
         self.config = config or get_config()
         self.horizon_days = horizon_days
-        self.feature_engine = XGBoostPredictor(self.config, horizon_days=horizon_days)
+        self.feature_engine = XGBoostPredictor(self.config, horizon_days=horizon_days, load_persisted=load_persisted)
         self.regime_classifier = RegimeClassifier(self.config)
         self.online_learner = OnlineLearningWrapper(self.config)
         self.feature_health = FeatureHealthTracker(self.config)
@@ -60,7 +60,8 @@ class AdaptivePredictor:
         self.selected_profile = "adaptive_regime_ensemble"
         self.last_report: TrainingReport | None = None
         self._latest_regime_history = pd.DataFrame()
-        self._load()
+        if load_persisted:
+            self._load()
 
     @property
     def is_trained(self) -> bool:
@@ -288,7 +289,7 @@ class AdaptivePredictor:
                 continue
             regime_models = self._fit_regime_models(
                 train,
-                model_count=max(3, int(self.config.adaptive_backtest_models)),
+                model_count=max(1, int(self.config.adaptive_backtest_models)),
             )
             probabilities = self._predict_regime_probabilities(test, regime_models)
             if probabilities.size == 0:
@@ -296,7 +297,7 @@ class AdaptivePredictor:
             scored = test.copy()
             scored["probability"] = probabilities
             top = scored.sort_values("probability", ascending=False).head(10)
-            avg_return = float(top["future_return"].mean())
+            avg_return = float((top["future_return"] - self.config.backtest_costs.round_trip_cost).mean())
             win_rate = float((top["target"] == 1).mean())
             weekly_returns.append(avg_return)
             weekly_hits.append(win_rate)
@@ -409,8 +410,15 @@ class AdaptivePredictor:
         augmented["date"] = pd.to_datetime(augmented["date"], utc=True)
         for column in ["regime", *ADAPTIVE_EXTRA_FEATURES]:
             series = regime_history[column]
+            # Lag the regime series by 1 business day: Monday sample dates receive
+            # Friday's close-derived regime, not Monday's.  This is consistent with
+            # the .shift(1) applied to all core technical features in _prepare_frame
+            # and eliminates the contemporaneous leakage where T-day regime context
+            # was used to predict a trade entered at T-day open.
+            lagged_series = series.copy()
+            lagged_series.index = series.index + pd.tseries.offsets.BDay(1)
             augmented[column] = (
-                series.reindex(augmented["date"], method="ffill")
+                lagged_series.reindex(augmented["date"], method="ffill")
                 .reset_index(drop=True)
                 .values
             )
@@ -430,7 +438,7 @@ class AdaptivePredictor:
     def _train_all_regime_ensembles(self, dataset: pd.DataFrame) -> None:
         self.regime_ensembles = self._fit_regime_models(
             dataset,
-            model_count=max(5, int(self.config.adaptive_uncertainty_models)),
+            model_count=max(1, int(self.config.adaptive_uncertainty_models)),
         )
         self.regime_training_counts = {
             regime: int(len(dataset.loc[dataset["regime"] == regime]))
@@ -445,9 +453,9 @@ class AdaptivePredictor:
         pos_count = int(target.sum())
         neg_count = int(len(target) - pos_count)
         scale_pos_weight = float(neg_count / max(pos_count, 1))
-        models = []
-        effective_model_count = max(int(model_count or self.config.adaptive_uncertainty_models), 3)
-        for seed in range(effective_model_count):
+        effective_model_count = max(int(model_count or self.config.adaptive_uncertainty_models), 1)
+        
+        def _train_single_seed(seed: int) -> object:
             sample = subset.sample(frac=1.0, replace=True, random_state=42 + seed)
             model = self.feature_engine._build_model(
                 scale_pos_weight=scale_pos_weight,
@@ -463,7 +471,16 @@ class AdaptivePredictor:
                 train_y,
                 **self.feature_engine._fit_kwargs(model, train_y, scale_pos_weight, sample_dates=train_dates),
             )
-            models.append(model)
+            return model
+
+        from concurrent.futures import ThreadPoolExecutor
+        workers = max(1, int(getattr(self.config, "training_cv_workers", 1)))
+        if workers == 1:
+            models = [_train_single_seed(seed) for seed in range(effective_model_count)]
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                models = list(executor.map(_train_single_seed, range(effective_model_count)))
+            
         return models
 
     def _predict_regime_probabilities(self, dataset: pd.DataFrame, regime_models: Dict[str, list[object]]) -> np.ndarray:
@@ -506,7 +523,7 @@ class AdaptivePredictor:
                 continue
             models = self._fit_regime_models(
                 train,
-                model_count=max(3, int(self.config.adaptive_cv_models)),
+                model_count=max(1, int(self.config.adaptive_cv_models)),
             )
             probabilities = self._predict_regime_probabilities(test, models)
             auc = float(roc_auc_score(test["target"], probabilities)) if test["target"].nunique() > 1 else 0.5
@@ -582,16 +599,30 @@ class AdaptivePredictor:
 
     def _online_features(self, feature_vector: Dict[str, float]) -> Dict[str, float]:
         allowed = {
+            # Core momentum
+            "return_1",
             "return_5",
             "return_20",
+            # Volume / liquidity
             "volume_ratio",
+            "volume_trend",
+            # Technical indicators
             "macd_hist",
             "rsi",
+            "atr_percentile",
             "adx",
+            "bollinger_position",
+            "consecutive_up_days",
+            # Relative strength
             "price_vs_52w_high",
             "sector_rs_rank",
+            # Trend / momentum
             "trend_consistency",
             "price_acceleration",
+            # New v2 features
+            "atr_norm_return",
+            "hl_ratio_trend",
+            # Adaptive regime context
             "momentum_regime_score",
             "rotation_speed",
             "earnings_quality",

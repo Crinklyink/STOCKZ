@@ -67,6 +67,13 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _load_env_file() -> None:
     env_path = PROJECT_ROOT / ".env"
     if not env_path.exists():
@@ -93,7 +100,7 @@ SMALL_CAP_UNIVERSE: List[str] = [
 ]
 
 MOST_SHORTED_UNIVERSE: List[str] = [
-    "CVNA", "UPST", "AI", "BYND", "LCID", "RIVN", "NKLA", "SOUN", "PLUG", "MARA",
+    "CVNA", "UPST", "AI", "BYND", "LCID", "RIVN", "SOUN", "PLUG", "MARA",
     "RIOT", "SMCI", "AFRM", "SOFI", "FUBO", "GME", "OPEN", "APP", "HIMS", "RKLB",
 ]
 
@@ -258,6 +265,19 @@ class Thresholds:
 
 
 @dataclass(slots=True)
+class BacktestCosts:
+    commission_bps: float = _env_float("BACKTEST_COMMISSION_BPS", 0.5)
+    slippage_bps: float = _env_float("BACKTEST_SLIPPAGE_BPS", 8.0)
+    spread_bps: float = _env_float("BACKTEST_SPREAD_BPS", 6.0)
+    max_position_pct: float = _env_float("BACKTEST_MAX_POSITION_PCT", 0.08)
+    turnover_penalty_bps: float = _env_float("BACKTEST_TURNOVER_PENALTY_BPS", 2.0)
+
+    @property
+    def round_trip_cost(self) -> float:
+        return max(0.0, (self.commission_bps + self.slippage_bps + self.spread_bps + self.turnover_penalty_bps) / 10_000.0)
+
+
+@dataclass(slots=True)
 class CacheTTLs:
     market_history: int = 60 * 60 * 6
     intraday_history: int = 60 * 60 * 6
@@ -278,7 +298,7 @@ class CacheTTLs:
 
 @dataclass(slots=True)
 class FeatureFlags:
-    adaptive_model: bool = True
+    adaptive_model: bool = _env_bool("ADAPTIVE_MODEL", True)
     online_learning: bool = True
     feature_health_decay: bool = True
     uncertainty_quantification: bool = True
@@ -318,7 +338,8 @@ class FeatureFlags:
     two_stage_scan: bool = True
     vectorized_prefilter: bool = True
     regime_specific_model: bool = True
-    lightgbm_ensemble: bool = True
+    native_boosters: bool = _env_bool("NATIVE_BOOSTERS", True)
+    lightgbm_ensemble: bool = _env_bool("LIGHTGBM_ENSEMBLE", True)
     spy_relative_target: bool = True
     signal_attribution_tracker: bool = True
     threshold_auto_calibrator: bool = True
@@ -326,7 +347,7 @@ class FeatureFlags:
     config_validation: bool = True
     defensive_stage1_rebalance: bool = True
     inference_alignment: bool = True
-    hyperparameter_search: bool = True
+    hyperparameter_search: bool = _env_bool("HYPERPARAMETER_SEARCH", True)
 
 
 @dataclass(slots=True)
@@ -366,6 +387,7 @@ class AppConfig:
     weekly_report_html: Path = ARTIFACT_DIR / "weekly_report.html"
     latest_single_analysis_path: Path = ARTIFACT_DIR / "latest_single_analysis.json"
     single_analysis_history_path: Path = ARTIFACT_DIR / "single_analysis_history.json"
+    model_monitoring_path: Path = ARTIFACT_DIR / "model_monitoring.json"
     latest_report_pdf: Path = REPORT_DIR / "latest.pdf"
     momentum_watchlist_path: Path = ARTIFACT_DIR / "momentum_watchlist.json"
     feature_importance_png: Path = ARTIFACT_DIR / "feature_importance.png"
@@ -377,6 +399,8 @@ class AppConfig:
     xgb_model_path: Path = MODEL_DIR / "xgboost_model.pkl"
     xgb_metadata_path: Path = MODEL_DIR / "xgboost_metadata.json"
     xgb_calibrator_path: Path = MODEL_DIR / "xgboost_calibrator.pkl"
+    xgb_short_model_path: Path = MODEL_DIR / "xgboost_short_horizon.pkl"
+    xgb_short_calibrator_path: Path = MODEL_DIR / "xgboost_short_horizon_calibrator.pkl"
     lgbm_model_path: Path = MODEL_DIR / "lightgbm_model.pkl"
     lgbm_metadata_path: Path = MODEL_DIR / "lightgbm_metadata.json"
     lgbm_calibrator_path: Path = MODEL_DIR / "lightgbm_calibrator.pkl"
@@ -421,11 +445,16 @@ class AppConfig:
     training_recency_half_life_weeks: int = 26
     training_recency_weight_floor: float = 0.35
     training_profile_recent_folds: int = 4
+    training_search_trials: int = _env_int("TRAINING_SEARCH_TRIALS", 36)
+    training_search_seed: int = _env_int("TRAINING_SEARCH_SEED", 42)
+    training_cv_workers: int = _env_int("TRAINING_CV_WORKERS", 1)
+    weekly_profit_target: float = _env_float("WEEKLY_PROFIT_TARGET", 0.06)
+    weekly_stop_loss: float = _env_float("WEEKLY_STOP_LOSS", 0.035)
     adaptive_regime_min_samples: int = 180
     adaptive_regime_recent_days: int = 183
-    adaptive_uncertainty_models: int = 20
-    adaptive_cv_models: int = 8
-    adaptive_backtest_models: int = 4
+    adaptive_uncertainty_models: int = _env_int("ADAPTIVE_UNCERTAINTY_MODELS", 20)
+    adaptive_cv_models: int = _env_int("ADAPTIVE_CV_MODELS", 8)
+    adaptive_backtest_models: int = _env_int("ADAPTIVE_BACKTEST_MODELS", 4)
     adaptive_uncertainty_warn: float = 0.10
     adaptive_uncertainty_high: float = 0.15
     adaptive_uncertainty_block: float = 0.20
@@ -442,6 +471,7 @@ class AppConfig:
     candidate_buffer: int = 30
     max_threads: int = 8
     max_parallel_tickers: int = 15
+    enable_finbert_sentiment: bool = _env_bool("ENABLE_FINBERT_SENTIMENT", False)
     finbert_model_name: str = "ProsusAI/finbert"
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
@@ -460,6 +490,10 @@ class AppConfig:
     tradytics_token: str | None = os.getenv("TRADYTICS_TOKEN")
     alpha_vantage_api_key: str | None = os.getenv("ALPHA_VANTAGE_API_KEY")
     alpha_vantage_base_url: str = os.getenv("ALPHA_VANTAGE_BASE_URL", "https://www.alphavantage.co/query")
+    alpaca_api_key: str | None = os.getenv("ALPACA_API_KEY")
+    alpaca_api_secret: str | None = os.getenv("ALPACA_API_SECRET")
+    alpaca_data_base_url: str = os.getenv("ALPACA_DATA_BASE_URL", "https://data.alpaca.markets")
+    polygon_api_key: str | None = os.getenv("POLYGON_API_KEY")
     quiver_endpoint: str | None = os.getenv("QUIVER_ENDPOINT")
     quiver_token: str | None = os.getenv("QUIVER_TOKEN")
     capitol_trades_endpoint: str | None = os.getenv("CAPITOL_TRADES_ENDPOINT")
@@ -481,11 +515,12 @@ class AppConfig:
     tft_max_epochs: int = int(os.getenv("TFT_MAX_EPOCHS", "3"))
     tft_batch_size: int = int(os.getenv("TFT_BATCH_SIZE", "64"))
     gpt_reasoning_top_n: int = int(os.getenv("GPT_REASONING_TOP_N", "20"))
-    progress_bar: bool = True
+    progress_bar: bool = _env_bool("PROGRESS_BAR", not _env_bool("STOCK_PREDICTOR_QUIET_RUNTIME", False))
     feature_flags: FeatureFlags = field(default_factory=FeatureFlags)
     cache_ttls: CacheTTLs = field(default_factory=CacheTTLs)
     signal_weights: SignalWeights = field(default_factory=SignalWeights)
     thresholds: Thresholds = field(default_factory=Thresholds)
+    backtest_costs: BacktestCosts = field(default_factory=BacktestCosts)
 
     @property
     def all_tickers(self) -> List[str]:

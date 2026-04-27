@@ -9,6 +9,7 @@ struct StockPredictorSwiftApp: App {
             ContentView()
                 .environmentObject(appState)
                 .frame(minWidth: 1180, minHeight: 760)
+                .preferredColorScheme(.dark)
                 .task {
                     await appState.reload()
                 }
